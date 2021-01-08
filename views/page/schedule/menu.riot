@@ -1,0 +1,170 @@
+<page-schedule-menu>
+  <div class="mr-2">
+    <div class="dropdown d-inline-block mr-2">
+      <button class="btn btn-primary" data-toggle="dropdown">
+        { ucfirst(props.calendar || 'month') }
+      </button>
+      
+      <ul class="dropdown-menu">
+        <li>
+          <button class={ classes({ 'dropdown-item' : true, 'active' : props.calendar === 'day' }) } onclick={ (e) => props.props('calendar', 'day') }>
+            Day
+          </button>
+        </li>
+        <li>
+          <button class={ classes({ 'dropdown-item' : true, 'active' : props.calendar === 'week' }) } onclick={ (e) => props.props('calendar', 'week') }>
+            Week
+          </button>
+        </li>
+        <li>
+          <button class={ classes({ 'dropdown-item' : true, 'active' : !props.calendar || props.calendar === 'month' }) } onclick={ (e) => props.props('calendar', 'month') }>
+            Month
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    <div class="border-left d-inline-block">
+      <button class={ classes({ 'btn btn-primary' : true, 'disabled' : isToday(props.date || new Date()) }) } onclick={ (e) => onToday(e) }>
+        Today
+      </button>
+
+      <div class="btn-group ml-1">
+        <button class="btn btn-primary" onclick={ (e) => onPrev(e) }>
+          <i class="fa fa-chevron-left" />
+        </button>
+        <button class="btn btn-primary" onclick={ (e) => onNext(e) }>
+          <i class="fa fa-chevron-right" />
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // require base class
+    import moment from 'moment';
+
+    // export default
+    export default class PageScheduleMenu {
+
+      /**
+       * on prev
+       */
+      onToday(e) {
+        // prevent
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // set date
+        this.props.props('date', new Date());
+      }
+
+      /**
+       * on prev
+       */
+      onPrev(e) {
+        // prevent
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // check date
+        if (!this.props.calendar || this.props.calendar === 'month') {
+          // add one month
+          return this.props.props('date', moment(this.props.date || new Date()).subtract(1, 'month').toDate());
+        }
+        if (this.props.calendar === 'week') {
+          // add one month
+          return this.props.props('date', moment(this.props.date || new Date()).subtract(1, 'week').toDate());
+        }
+        if (this.props.calendar === 'day') {
+          // add one month
+          return this.props.props('date', moment(this.props.date || new Date()).subtract(1, 'day').toDate());
+        }
+      }
+
+      /**
+       * on prev
+       */
+      onNext(e) {
+        // prevent
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // check date
+        if (!this.props.calendar || this.props.calendar === 'month') {
+          // add one month
+          return this.props.props('date', moment(this.props.date || new Date()).add(1, 'month').toDate());
+        }
+        if (this.props.calendar === 'week') {
+          // add one month
+          return this.props.props('date', moment(this.props.date || new Date()).add(1, 'week').toDate());
+        }
+        if (this.props.calendar === 'day') {
+          // add one month
+          this.props.props('date', moment(this.props.date || new Date()).add(1, 'day').toDate());
+        }
+      }
+
+      /**
+       * check is today
+       */
+      isToday(date) {
+        // check day
+        return moment().format('YYYY-MM-DD') === moment(date).format('YYYY-MM-DD');
+      }
+
+
+      // ////////////////////////////////////////////////////////////////////////////
+      //
+      // MISC METHODS
+      //
+      // ////////////////////////////////////////////////////////////////////////////
+
+      /**
+       * ref
+       */
+      ref(name) {
+        // set refs
+        if (!this.refs) this.refs = {};
+
+        // return ref function
+        return (that) => {
+          // set ref
+          this.refs[name] = that;
+        };
+      }
+
+      /**
+       * ucfirst
+       */
+      ucfirst(str) {
+        // string
+        return str[0].toUpperCase() + str.substring(1);
+      }
+
+      /**
+       * classes
+       */
+      classes(obj) {
+        // return classes
+        return Object.keys(obj).filter((key) => !!obj[key]).join(' ');
+      }
+
+      /**
+       * set loading
+       */
+      loading(type, way) {
+        // set loading
+        if (!this.__loading) this.__loading = new Map();
+
+        // check loading
+        if (!type) return !!Array.from(this.__loading.values()).find((v) => v);
+        if (typeof way === 'undefined') return !!this.__loading.get(type);
+
+        // set loading
+        this.__loading.set(type, way);
+        this.update();
+      }
+    }
+  </script>
+</page-schedule-menu>

@@ -1,0 +1,57 @@
+<page-schedule-view>
+  <div>
+    <editor if={ props.altering } ref={ ref('schedule') } class="editor-hidden" content={ props.page.get('data.schedule') } on-update={ (e) => onChange(e) } />
+    <editor-render if={ !props.altering } ref={ ref('schedule') } class="editor-hidden" content={ props.page.get('data.schedule') } />
+  </div>
+
+  <script>
+
+    export default class PageScheduleView {
+
+      /**
+       * get props
+       */
+      getProps() {
+        // get props
+        const props = { ...(this.props) };
+
+        // delete unwanted
+        delete props.view;
+        delete props.type;
+        delete props.struct;
+
+        // return fixed
+        return props;
+      }
+
+      /**
+       * on color
+       */
+      onChange(e) {
+        // set color
+        this.props.data('schedule', this.refs.schedule.val());
+      }
+
+
+      // ////////////////////////////////////////////////////////////////////////////
+      //
+      // MISC METHODS
+      //
+      // ////////////////////////////////////////////////////////////////////////////
+
+      /**
+       * ref
+       */
+      ref(name) {
+        // set refs
+        if (!this.refs) this.refs = {};
+
+        // return ref function
+        return (that) => {
+          // set ref
+          this.refs[name] = that;
+        };
+      }
+    }
+  </script>
+</page-schedule-view>
