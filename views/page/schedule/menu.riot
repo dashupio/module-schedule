@@ -1,32 +1,32 @@
 <page-schedule-menu>
-  <div class="mr-2">
+  <div>
     <div class="dropdown d-inline-block mr-2">
       <button class="btn btn-primary" data-toggle="dropdown">
-        { ucfirst(props.calendar || 'month') }
+        { ucfirst(props.page.get('user.calendar') || 'month') }
       </button>
       
       <ul class="dropdown-menu">
         <li>
-          <button class={ classes({ 'dropdown-item' : true, 'active' : props.calendar === 'day' }) } onclick={ (e) => props.props('calendar', 'day') }>
+          <button class={ classes({ 'dropdown-item' : true, 'active' : props.page.get('user.calendar') === 'day' }) } onclick={ (e) => onCalendar(e, 'day') }>
             Day
           </button>
         </li>
         <li>
-          <button class={ classes({ 'dropdown-item' : true, 'active' : props.calendar === 'week' }) } onclick={ (e) => props.props('calendar', 'week') }>
+          <button class={ classes({ 'dropdown-item' : true, 'active' : props.page.get('user.calendar') === 'week' }) } onclick={ (e) => onCalendar(e, 'week') }>
             Week
           </button>
         </li>
         <li>
-          <button class={ classes({ 'dropdown-item' : true, 'active' : !props.calendar || props.calendar === 'month' }) } onclick={ (e) => props.props('calendar', 'month') }>
+          <button class={ classes({ 'dropdown-item' : true, 'active' : !props.page.get('user.calendar') || props.page.get('user.calendar') === 'month' }) } onclick={ (e) => onCalendar(e, 'month') }>
             Month
           </button>
         </li>
       </ul>
     </div>
 
-    <div class="border-left d-inline-block">
+    <div class="d-inline-block mr-2">
       <button class={ classes({ 'btn btn-primary' : true, 'disabled' : isToday(props.date || new Date()) }) } onclick={ (e) => onToday(e) }>
-        Today
+        { getTitle() }
       </button>
 
       <div class="btn-group ml-1">
@@ -38,6 +38,15 @@
         </button>
       </div>
     </div>
+
+    <!-- CREATE -->
+    <div class="d-inline-block mr-2" if={ props.page.get('data.model') && props.dashup.page(props.page.get('data.model')) }>
+      <button if={ props.dashup.can(props.page, 'submit') } class="btn btn-dark" type="button" onclick={ (e) => props.onItem(e) }>
+        <i class="fat fa-plus mr-2" />
+        { props.dashup.page(props.page.get('data.model')).get('name') }
+      </button>
+    </div>
+    <!-- / CREATE -->
   </div>
 
   <script>
@@ -68,15 +77,15 @@
         e.stopPropagation();
         
         // check date
-        if (!this.props.calendar || this.props.calendar === 'month') {
+        if (!this.props.page.get('user.calendar') || this.props.page.get('user.calendar') === 'month') {
           // add one month
           return this.props.props('date', moment(this.props.date || new Date()).subtract(1, 'month').toDate());
         }
-        if (this.props.calendar === 'week') {
+        if (this.props.page.get('user.calendar') === 'week') {
           // add one month
           return this.props.props('date', moment(this.props.date || new Date()).subtract(1, 'week').toDate());
         }
-        if (this.props.calendar === 'day') {
+        if (this.props.page.get('user.calendar') === 'day') {
           // add one month
           return this.props.props('date', moment(this.props.date || new Date()).subtract(1, 'day').toDate());
         }
@@ -91,17 +100,52 @@
         e.stopPropagation();
         
         // check date
-        if (!this.props.calendar || this.props.calendar === 'month') {
+        if (!this.props.page.get('user.calendar') || this.props.page.get('user.calendar') === 'month') {
           // add one month
           return this.props.props('date', moment(this.props.date || new Date()).add(1, 'month').toDate());
         }
-        if (this.props.calendar === 'week') {
+        if (this.props.page.get('user.calendar') === 'week') {
           // add one month
           return this.props.props('date', moment(this.props.date || new Date()).add(1, 'week').toDate());
         }
-        if (this.props.calendar === 'day') {
+        if (this.props.page.get('user.calendar') === 'day') {
           // add one month
           this.props.props('date', moment(this.props.date || new Date()).add(1, 'day').toDate());
+        }
+      }
+
+      /**
+       * on calendar
+       */
+      onCalendar(e, type) {
+        // prevent
+        e.preventDefault();
+        e.stopPropagation();
+
+        // set calendar
+        this.props.user('calendar', type);
+      }
+
+      /**
+       * get title
+       */
+      getTitle() {
+        // check today
+        if (this.isToday(this.props.date || new Date())) return 'Today';
+
+        // cal
+        const calendar = this.props.page.get('user.calendar') || 'month';
+
+        /**
+         * return month
+         */
+        if (calendar === 'month') {
+          // return moment
+          return moment(this.props.date || new Date()).format('MMMM YYYY');
+        } else if (calendar === 'week') {
+          return moment(this.props.date || new Date()).startOf('week').format('Do MMMM YYYY');
+        } else if (calendar === 'day') {
+          return moment(this.props.date || new Date()).startOf('day').format('Do MMMM YYYY');
         }
       }
 

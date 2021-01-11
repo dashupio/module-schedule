@@ -17,6 +17,7 @@
     "@dashup/eslint-config-dashup": "0.0.1",
     "@dashup/module": "^1.0.3",
     "babel-plugin-add-module-exports": "^1.0.4",
-    "moment": "^2.29.1"
+    "moment": "^2.29.1",
+    "perfect-scrollbar": "^1.5.0"
   }
 }

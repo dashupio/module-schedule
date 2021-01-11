@@ -62,6 +62,7 @@ export default class SchedulePage extends Struct {
       view   : 'page/schedule/view',
       menu   : 'page/schedule/menu',
       config : 'page/schedule/config',
+      filter : 'page/schedule/filter',
     };
   }
 

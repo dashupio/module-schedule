@@ -30,6 +30,33 @@
         </label>
         <eden-select on-change={ (e, val) => onEnd(val) } ref={ ref('end') } placeholder="Select Field" data={ getEnd() } />
       </div>
+        
+      <div class="mb-3">
+        <label class="form-label">
+          Tag Field
+        </label>
+        <eden-select on-change={ (e, val) => onTag(val) } ref={ ref('tag') } placeholder="Select Tag Field" data={ getTag() } />
+        <small>
+          Selecting a tag field will allow you to tag tasks.
+        </small>
+      </div>
+        
+      <div class="mb-3">
+        <label class="form-label">
+          User Field
+        </label>
+        <eden-select on-change={ (e, val) => onUser(val) } ref={ ref('user') } placeholder="Select User Field" data={ getUser() } />
+        <small>
+          Selecting a user field will allow you to assign tasks to that user.
+        </small>
+      </div>
+        
+      <div class="mb-3">
+        <label class="form-label">
+          Group By
+        </label>
+        <eden-select on-change={ (e, val) => onGroup(val) } ref={ ref('group') } placeholder="Select Field" data={ getGroup() } />
+      </div>
 
       <div class="mb-3">
         <label class="form-label">
@@ -39,6 +66,14 @@
         <div class="alert alert-primary mt-2">
           <hbs template={ props.page.get('data.display') || '' } data={ state.test ? state.test.get() : {} } />
         </div>
+      </div>
+        
+      <div class="mb-3">
+        <label class="form-label">
+          Filter By
+        </label>
+
+        <dashup-query fields={ props.context.fields } on-change={ (val) => onFilter(val) } value={ props.page.get('data.filter') ? JSON.parse(props.page.get('data.filter')) : [] } />
       </div>
     </div>
   </div>
@@ -67,7 +102,7 @@
         await this.props.data('model', val);
 
         // loading model
-        this.loading('model', true);
+        this.loading('model', false);
       }
 
       /**
@@ -78,7 +113,7 @@
         if (!val) val = this.refs.form.val();
 
         // set model
-        this.props.data('form', val);
+        this.props.data('form', val || null);
       }
 
       /**
@@ -89,7 +124,7 @@
         if (!val) val = this.refs.start.val();
 
         // set model
-        this.props.data('start', val);
+        this.props.data('start', val || null);
       }
 
       /**
@@ -100,7 +135,7 @@
         if (!val) val = this.refs.end.val();
 
         // set model
-        this.props.data('end', val);
+        this.props.data('end', val || null);
       }
 
       /**
@@ -108,7 +143,45 @@
        */
       onDisplay(val) {
         // set color
-        this.props.data('display', val);
+        this.props.data('display', val || null);
+      }
+
+      /**
+       * on color
+       */
+      onGroup(val) {
+        // set color
+        this.props.data('group', val || null);
+      }
+
+      /**
+       * on model
+       */
+      onTag(val) {
+        // get value
+        if (!val) val = this.refs.tag.val();
+      
+        // set model
+        this.props.data('tag', val || null);
+      }
+
+      /**
+       * on model
+       */
+      onUser(val) {
+        // check value
+        if (!val) val = this.refs.user.val();
+        
+        // set model
+        this.props.data('user', val || null);
+      }
+
+      /**
+       * on model
+       */
+      onFilter(val) {
+        // set model
+        this.props.data('filter', JSON.stringify(val));
       }
 
       /**
@@ -173,6 +246,51 @@
             name     : field.label,
             value    : field.uuid,
             selected : this.props.page.get('data.end') === field.uuid,
+          };
+        });
+      }
+
+      /**
+       * get field
+       */
+      getGroup() {
+        // return value
+        return this.props.context.fields.map((field) => {
+          // return value
+          return {
+            name     : field.label,
+            value    : field.uuid,
+            selected : this.props.page.get('data.group') === field.uuid,
+          };
+        }).filter((f) => f);
+      }
+
+      /**
+       * get field
+       */
+      getTag() {
+        // return value
+        return [...(this.props.context.fields)].filter((field) => ['select', 'checkbox'].includes(field.type)).map((field) => {
+          // return fields
+          return {
+            name     : field.label || field.name,
+            value    : field.uuid,
+            selected : this.props.page.get('data.tag') === field.uuid,
+          };
+        });
+      }
+
+      /**
+       * get field
+       */
+      getUser() {
+        // return value
+        return [...(this.props.context.fields)].filter((field) => ['user'].includes(field.type)).map((field) => {
+          // return fields
+          return {
+            name     : field.label || field.name,
+            value    : field.uuid,
+            selected : this.props.page.get('data.user') === field.uuid,
           };
         });
       }

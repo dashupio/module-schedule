@@ -1,0 +1,241 @@
+<page-calendar-task>
+  <div if={ !props.item.get('archived') } class={ `card card-sm card-task card-${getColor()}` } onclick={ (e) => onClick(e) } data-id={ props.item.get('_id') } id={ `task-${props.item.get('_id')}` } if={ !loading('backlog') }>
+    <div class="resize-left" />
+    <div class="resize-right" />
+    <div if={ getColor() } class="color-strip" />
+    <div if={ hasTags() } class="card-header tags p-2 pb-1 dropdown">
+      <template each={ (type, a) in getTagTypes() }>
+        <button each={ (tag, i) in getTags(type) } class={ `btn btn-sm mr-1 btn-${tag.color}` } onclick={ (e) => props.addTag(e, props.item, type) }>
+          { tag.label }
+        </button>
+
+        <button class="btn btn-sm btn-outline-primary" id={ `tag-${props.item.get('_id')}` } onclick={ (e) => props.addTag(e, props.item, type) } data-toggle="tooltip" title={ type.label }>
+          <i class="fa fa-tag" />
+        </button>
+      </template>
+    </div>
+
+    <div class={ `card-body ${hasTags() ? ' pt-2' : ''}` }>
+      <hbs template={ props.page.get('data.display') || '' } data={ props.item ? props.item.toJSON() : {} } />
+    </div>
+
+    <div class="card-footer tags p-2 pt-1 dropdown" if={ hasUser() }>
+      <template each={ (type, a) in getUserTypes() }>
+        <button if={ hasUser() } each={ (user, i) in getUsers(type) } class="btn btn-sm btn-circle mr-1" style={ getAvatar(user) ? `background-image:url(${getAvatar(user)})` : null } data-toggle="tooltip" title={ user.name } onclick={ (e) => props.addUser(e, props.item, type) }>
+          { getAvatar(user) ? '' : getShortName(user) }
+        </button>
+
+        <button if={ hasUser() } class="btn btn-sm btn-outline-primary btn-circle" id={ `user-${props.item.get('_id')}` } onclick={ (e) => props.addUser(e, props.item, type) } data-toggle="tooltip" title={ type.label }>
+          <i class="fa fa-plus" />
+        </button>
+      </template>
+
+      <button class={ `btn btn-sm btn-${props.item.get('_alert.important') && !props.item.get('_alert.all') ? '' : 'outline-primary'}${props.item.get('_alert.important') ? 'primary' : ''}${props.item.get('_alert.all') && !props.item.get('_alert.important') ? 'info' : ''} ml-auto` } id={ `chat-${props.item.get('_id')}` } onclick={ (e) => props.onItem(e) }>
+        <span if={ state.count } class="mr-2">
+          { state.count.toLocaleString() }
+        </span>
+        <i class="fa fa-comments" />
+      </button>
+    </div>
+  </div>
+
+  <script>
+
+    /**
+     * export default
+     */
+    export default class BoardTask {
+
+      /**
+       * on before mount
+       */
+      onMounted(...args) {
+        // bind
+        this.onCount = this.onCount.bind(this);
+
+        // on update
+        if (typeof window === 'undefined') return;
+
+        // safe updated
+        this.safeUpdated = () => {
+          // safe update
+          this.update();
+        };
+
+        // on update
+        this.props.dashup.action({
+          type   : 'page',
+          struct : 'channel',
+        }, 'count', this.props.item.get('_id')).then(this.onCount);
+        this.props.dashup.socket.on(`count.${this.props.item.get('_id')}`, this.onCount);
+      }
+
+      /**
+       * on updated
+       */
+      onUpdated(...args) {
+        // check frontend
+        if (typeof window === 'undefined') return;
+
+        // check
+        $(this.$('[data-toggle="tooltip"]')).tooltip();
+      }
+
+      /**
+       * on before unmount
+       */
+      onBeforeUnmount(...args) {
+        // on update
+        if (typeof window === 'undefined') return;
+
+        // on update
+        this.props.dashup.action({
+          type   : 'page',
+          struct : 'channel',
+        }, 'message.unsubscribe', this.props.item.get('_id'));
+
+        // off
+        this.props.dashup.socket.off(`count.${this.props.item.get('_id')}`, this.onCount);
+      }
+
+      /**
+       * on click
+       */
+      onClick(e) {
+        // check
+        if ($(e.target).is('a') || $(e.target).closest('a').length || $(e.target).is('.btn') || $(e.target).closest('.btn').length) return;
+
+        // on item
+        this.props.onItem(e);
+      }
+
+      /**
+       * get color
+       */
+      getColor() {
+        // get color
+        return this.getTags(this.getTagTypes()[0])[0] ? this.getTags(this.getTagTypes()[0])[0].color : null;
+      }
+
+      /**
+       * get types
+       */
+      getTagTypes() {
+        // set types
+        let types = (this.props.page.get('data.tag') || []);
+        if (!Array.isArray(types)) types = [types];
+
+        // return fields
+        return types.map((type) => {
+          // return type
+          return (this.props.formFields || []).find((f) => f.uuid === type);
+        });
+      }
+
+      /**
+       * get types
+       */
+      getUserTypes() {
+        // set types
+        let types = (this.props.page.get('data.user') || []);
+        if (!Array.isArray(types)) types = [types];
+
+        // return fields
+        return types.map((type) => {
+          // return type
+          return (this.props.formFields || []).find((f) => f.uuid === type);
+        });
+      }
+
+      /**
+       * get tags
+       */
+      getTags(tagField) {
+        // tag field
+        if (!tagField) return [];
+
+        // get options
+        const options = tagField.options || [];
+
+        // check options
+        if (!options.length) return [];
+
+        // get value
+        let val = this.props.item.get(tagField.name || tagField.uuid) || [];
+
+        // set value
+        if (typeof val === 'string') val = [val];
+
+        // tags
+        return options.filter((t) => {
+          // return has tag
+          return val.includes(t.value);
+        });
+      }
+
+      /**
+       * get tags
+       */
+      getUsers(userField) {
+        // check options
+        if (!userField) return [];
+
+        // get value
+        let val = this.props.item.get(userField.name || userField.uuid) || [];
+
+        // set value
+        if (val && !Array.isArray(val)) val = [val];
+
+        // tags
+        return val;
+      }
+
+      /**
+       * get short name
+       */
+      getShortName(user) {
+        // get name
+        const name = `${user.name || ''}`.trim() || 'N A';
+
+        // return name
+        return `${(name.split(' ')[0] || '')[0] || ''}${(name.split(' ')[1] || '')[0] || ''}`;
+      }
+
+      /**
+       * get short name
+       */
+      getAvatar(user) {
+        // return avatar
+        return ((((user.avatar || [])[0] || {}).thumbs || {})['1x-sq'] || {}).url;
+      }
+
+      /**
+       * has tags
+       */
+      hasTags() {
+        // tag uuid
+        return (this.props.page.get('data.tag') || []).length;
+      }
+
+      /**
+       * has tags
+       */
+      hasUser() {
+        // tag uuid
+        return (this.props.page.get('data.user') || []).length;
+      }
+
+      /**
+       * on open
+       *
+       * @param {Event} e
+       */
+      onCount(count) {
+        // count
+        this.update({
+          count,
+        });
+      }
+    }
+  </script>
+</page-calendar-task>

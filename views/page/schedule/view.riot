@@ -1,12 +1,410 @@
 <page-schedule-view>
-  <div>
-    <editor if={ props.altering } ref={ ref('schedule') } class="editor-hidden" content={ props.page.get('data.schedule') } on-update={ (e) => onChange(e) } />
-    <editor-render if={ !props.altering } ref={ ref('schedule') } class="editor-hidden" content={ props.page.get('data.schedule') } />
+  <div class="schedule d-flex flex-1">
+    <div if={ state.loading } class="text-center my-4">
+      <i class="h1 fa fa-spinner fa-spin m-auto" />
+    </div>
+    <div if={ !state.loading } class="calendar-wrapper w-100 flex-1">
+
+      <!-- BACKGROUND -->
+      <div class="row h-100">
+        <div class="col-xl-2 col-lg-3">
+          
+        </div>
+        <div class="col-xl-10 col-lg-9">
+          <div class="d-flex flex-row calendar-cols h-100">
+            <div each={ (unit, i) in getUnits() } class="flex-1 calendar-col">
+              <p class="text-center lead w-100">
+                { getTitle(unit) }
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- / BACKGROUND -->
+
+      <!-- ITEMS -->
+      <div if={ state.group && state.groups } class="calendar-content">
+        <p class="lead">
+          &nbsp;
+        </p>
+        <div class="row" each={ (group, i) in state.groups }>
+          <div class="col-lg-3 col-xl-2">
+            <div class={ `d-flex flex-row mb-3 schedule-group ${state.group.view ? `${state.group.view}-field` : `field-${state.group.type}-view`}` }>
+              <div is={ state.group.view ? `${state.group.view}-field` : `field-${state.group.type}-view` } view="view" field={ state.group } value={ group } { ...(getProps()) } />
+            </div>
+          </div>
+          <div class="col-xl-10 col-lg-9">
+            <div class="calendar-items">
+              <div is="page-schedule-task" data-id={ item.get('_id') } style={ getPosition(item) } each={ (item, i) in getItems(group) } item={ item } form-fields={ props.context.fields } on-item={ (e) => onItem(e, item) } { ...getItemProps() } />
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- / ITEMS -->
+
+      
+    </div>
   </div>
 
   <script>
+    // import moment
+    import moment from 'moment';
+    import dotProp from 'dot-prop';
+    import PerfectScrollbar from 'perfect-scrollbar';
 
+    // import modules
+    import pageScheduleTask from './task';
+
+    /**
+     * page schedule view
+     */
     export default class PageScheduleView {
+
+
+      // ////////////////////////////////////////////////////////////////////////////
+      //
+      // RIOT METHODS
+      //
+      // ////////////////////////////////////////////////////////////////////////////
+
+      /**
+       * local components
+       */
+      static get components() {
+        // return components
+        return {
+          pageScheduleTask,
+        };
+      }
+
+      /**
+       * on before mount
+       */
+      onBeforeMount() {
+        // set dotprop
+        this.moment = moment;
+        this.dotProp = dotProp;
+
+        // safe update
+        this.safeUpdate = () => {
+          this.update();
+        };
+
+        // check window
+        if (typeof window === 'undefined') return;
+
+        // init
+        this.init = this.init.bind(this);
+        this.resize = this.resize.bind(this);
+
+        // add listeners
+        this.props.page.on('do.data.form', this.init);
+        this.props.page.on('do.data.model', this.init);
+        this.props.page.on('do.user.where', this.init);
+        this.props.page.on('do.user.filter', this.init);
+        this.props.page.on('do.data.filter', this.init);
+        this.props.page.on('do.user.calendar', this.init);
+      }
+
+      /**
+       * on before mount
+       */
+      onBeforeUnmount() {
+        // check window
+        if (typeof window === 'undefined') return;
+
+        // add listeners
+        this.props.page.removeListener('do.data.form', this.init);
+        this.props.page.removeListener('do.data.model', this.init);
+        this.props.page.removeListener('do.user.where', this.init);
+        this.props.page.removeListener('do.user.filter', this.init);
+        this.props.page.removeListener('do.data.filter', this.init);
+        this.props.page.removeListener('do.user.calendar', this.init);
+
+        // remove item listeners
+        if (this.state.data) {
+          this.state.data.deafen();
+          this.state.data.removeListener('update', this.safeUpdate);
+        }
+
+        // add resize listeners
+        $(document).off('mousedown', this.resize);
+      }
+
+      /**
+       * on updated
+       */
+      onUpdated(...args) {
+        // check frontend
+        if (typeof window === 'undefined') return;
+
+        // set ps
+        if (!this.$('.ps') && this.$('.calendar-cols')) {
+          // perfect scrollbar
+          this.ps = new PerfectScrollbar(this.$('.calendar-cols'));
+        }
+
+        // check search
+        if (this.search !== this.props.search) {
+          // init
+          this.search = this.props.search;
+          this.init();
+        }
+      }
+
+      /**
+       * on updated
+       */
+      onMounted(...args) {
+        // check frontend
+        if (typeof window === 'undefined') return;
+        
+        // init
+        this.init();
+
+        // add resize listeners
+        $(document).on('mousedown', this.resize);
+      }
+
+      // ////////////////////////////////////////////////////////////////////////////
+      //
+      // EVENT METHODS
+      //
+      // ////////////////////////////////////////////////////////////////////////////
+
+      /**
+       * on color
+       */
+      onChange(e) {
+        // set color
+        this.props.data('schedule', this.refs.schedule.val());
+      }
+
+      /**
+       * on item
+       */
+      onItem(e, item) {
+        // check resizing
+        if (this.resizing) return;
+
+        // on item
+        return this.props.onItem(e, item)
+      }
+
+
+      // ////////////////////////////////////////////////////////////////////////////
+      //
+      // INIT METHODS
+      //
+      // ////////////////////////////////////////////////////////////////////////////
+
+      /**
+       * init
+       */
+      async init() {
+        // check
+        if (this.initializing) return;
+        if (!this.props.page.get('data.form')) return;
+        if (!this.props.page.get('data.model')) return;
+
+        // initializing
+        this.initializing = true;
+
+        // loading
+        this.update({
+          loading : new Date(),
+        });
+
+        // check data
+        if (this.state.data) {
+          this.state.data.deafen();
+          this.state.data.removeListener('update', this.safeUpdate);
+        }
+
+        // find data
+        const form = this.props.dashup.page(this.props.page.get('data.form'));
+        const query = this.getQuery();
+        const group = (form.get('data.fields') || []).find((f) => f.uuid === this.props.page.get('data.group'));
+
+        // find
+        const data = await query.listen();
+
+        // create groups
+        const groups = data.reduce((accum, item) => {
+          // get data
+          let val = item.get(group.name || group.uuid);
+
+          // check val
+          if (!Array.isArray(val)) val = [val];
+
+          // loop val
+          val.forEach((sub) => {
+            // check val
+            if (!accum.includes(JSON.stringify(sub))) accum.push(JSON.stringify(sub));
+          });
+
+          // return accum
+          return accum;
+        }, []).map((val) => JSON.parse(val));
+
+        // loading
+        this.update({
+          data,
+          group,
+          groups,
+
+          loading : false,
+        });
+
+        // safe update
+        data.on('update', this.safeUpdate);
+
+        // unset
+        this.initializing = false;
+      }
+
+      /**
+       * resize
+       */
+      resize(e) {
+        // check el
+        if (!$(e.target).is('.resize-left, .resize-right')) return;
+
+        // resizing
+        this.resizing = true;
+
+        // get item
+        const id = $(e.target).closest('[data-id]').attr('data-id');
+        const form = this.props.dashup.page(this.props.page.get('data.form'));
+        const item = this.state.data.find((i) => i.get('_id') === id);
+        const calendar = this.props.page.get('user.calendar') || 'month';
+
+        // get start/end
+        const end   = (form.get('data.fields') || []).find((f) => f.uuid === this.props.page.get('data.end'));
+        const start = (form.get('data.fields') || []).find((f) => f.uuid === this.props.page.get('data.start'));
+
+        // get x/y
+        const orig = e.clientX;
+
+        // move
+        const move = (ea) => {
+          console.log('moveeee');
+          // new pos
+          const pos = ea.clientX;
+
+          // check value
+          const changeX = orig - pos;
+
+          // get percentage value
+          const percent = parseFloat(((changeX / $('.calendar-cols', this.root).prop('scrollWidth')) * 100).toFixed(2));
+
+          // set value
+          item.set($(e.target).is('.resize-left') ? '_change.start' : '_change.end', percent);
+
+          console.log('change', percent);
+
+          // position
+          $(`[data-id="${id}"][is="page-calendar-task"]`).attr('style', this.getPosition(item));
+        };
+
+        // resize element
+        $(document).on('mousemove', move);
+        $(document).one('mouseup', (e) => {
+          // remove
+          $(document).off('mousemove', move);
+
+          // set change
+          const startPercent = item.get('_change.start');
+          const endPercent = item.get('_change.end');
+
+          // seconds
+          let round = null;
+          let endTime = 0;
+          let startTime = 0;
+          let totalSeconds = 0;
+
+          // calendar
+          if (calendar === 'month') {
+            // week
+            round = (date) => {
+              // return rounded to hour
+              return new Date(Math.floor(date.getTime() / (60 * 60 * 1000)) * (60 * 60 * 1000));
+            };
+            endTime = moment(this.props.date || new Date()).endOf('month').toDate().getTime();
+            startTime = moment(this.props.date || new Date()).startOf('month').toDate().getTime();
+            totalSeconds = moment(this.props.date || new Date()).endOf('month').toDate().getTime()
+              - moment(this.props.date || new Date()).startOf('month').toDate().getTime();
+          } else if (calendar === 'week') {
+            // week
+            round = (date) => {
+              // return rounded to 15 minutes
+              return new Date(Math.floor(date.getTime() / (15 * 60 * 1000)) * (15 * 60 * 1000));
+            };
+            endTime = moment(this.props.date || new Date()).endOf('week').toDate().getTime();
+            startTime = moment(this.props.date || new Date()).startOf('week').toDate().getTime();
+            totalSeconds = moment(this.props.date || new Date()).endOf('week').toDate().getTime()
+              - moment(this.props.date || new Date()).startOf('week').toDate().getTime();
+          } else if (calendar === 'day') {
+            // week
+            round = (date) => {
+              // return rounded to 1 minute
+              return new Date(Math.floor(date.getTime() / (60 * 1000)) * (60 * 1000));
+            };
+            endTime = moment(this.props.date || new Date()).endOf('day').toDate().getTime();
+            startTime = moment(this.props.date || new Date()).startOf('day').toDate().getTime();
+            totalSeconds = moment(this.props.date || new Date()).endOf('day').toDate().getTime()
+              - moment(this.props.date || new Date()).startOf('day').toDate().getTime();
+          }
+
+          // unset change
+          item.set('_change', {});
+
+          // start percent
+          if (startPercent) {
+            // change
+            const secondsOfChange = parseInt(totalSeconds * (startPercent / 100));
+            
+            // item start
+            let itemStart = new Date(item.get(start.name || start.uuid)).getTime();
+
+            // check time
+            if (itemStart < startTime) itemStart = startTime;
+
+            // set date
+            item.set(start.name || start.uuid, round(new Date(itemStart - secondsOfChange)));
+          }
+          if (endPercent) {
+            // change
+            const secondsOfChange = parseInt(totalSeconds * (endPercent / 100));
+            
+            // item start
+            let itemEnd = new Date(item.get(end.name || end.uuid)).getTime();
+
+            // check time
+            if (itemEnd > endTime) itemEnd = endTime;
+
+            // set date
+            item.set(end.name || end.uuid, round(new Date(itemEnd - secondsOfChange)));
+          }
+
+          // save item
+          item.save();
+          this.update();
+
+          // unset resizing
+          setTimeout(() => {
+            // resizing
+            this.resizing = false;
+          }, 250);
+        });
+      }
+
+
+      // ////////////////////////////////////////////////////////////////////////////
+      //
+      // GET METHODS
+      //
+      // ////////////////////////////////////////////////////////////////////////////
 
       /**
        * get props
@@ -25,11 +423,290 @@
       }
 
       /**
-       * on color
+       * get title
        */
-      onChange(e) {
-        // set color
-        this.props.data('schedule', this.refs.schedule.val());
+      getTitle(date) {
+        // calendar
+        const calendar = this.props.page.get('user.calendar') || 'month';
+
+        // check type
+        if (calendar === 'month') {
+          // format
+          return moment(date).format('Do');
+        } else if (calendar === 'week') {
+          // week
+          return moment(date).format('dddd');
+        } else if (calendar === 'day') {
+          // hour
+          return moment(date).format('ha');
+        }
+      }
+
+      /**
+       * get day units
+       */
+      getUnits() {
+        // get time
+        const date = this.props.date || new Date();
+        const calendar = this.props.page.get('user.calendar') || 'month';
+
+        // get days in month
+        let count = 0;
+        
+        // calculate
+        if (calendar === 'month') {
+          count = moment(date).daysInMonth();
+        } else if (calendar === 'week') {
+          count = 7;
+        } else if (calendar === 'day') {
+          count = 24;
+        }
+
+        // units
+        const units = [];
+
+        // for loop
+        for (let i = 0; i < count; i++) {
+          // calendar
+          if (calendar === 'month') {
+            // week
+            units.push(moment(date).startOf('month').add(i, 'days').toDate());
+          } else if (calendar === 'week') {
+            // week
+            units.push(moment(date).startOf('week').add(i, 'days').toDate());
+          } else if (calendar === 'day') {
+            // units
+            units.push(moment(date).startOf('day').add(i, 'hours').toDate());
+          }
+        }
+
+        // return units
+        return units;
+      }
+
+      /**
+       * get items
+       */
+      getItems(group) {
+        // form
+        const form = this.props.dashup.page(this.props.page.get('data.form'));
+        const groupField = (form.get('data.fields') || []).find((f) => f.uuid === this.props.page.get('data.group'));
+
+        // return items
+        return (this.state.data || []).filter((item) => {
+          // check item
+          let val = item.get(groupField.name || groupField.uuid);
+
+          // check matches
+          if (!Array.isArray(val)) val = [val];
+
+          // stringified
+          return val.find((v) => JSON.stringify(v) === JSON.stringify(group));
+        });
+      }
+
+      /**
+       * get item position
+       */
+      getPosition(item) {
+        // form
+        const form = this.props.dashup.page(this.props.page.get('data.form'));
+        const calendar = this.props.page.get('user.calendar') || 'month';
+
+        // fix width
+        $('.calendar-items', this.root).width($('.calendar-cols', this.root).prop('scrollWidth'));
+
+        // get start/end
+        const end   = (form.get('data.fields') || []).find((f) => f.uuid === this.props.page.get('data.end'));
+        const start = (form.get('data.fields') || []).find((f) => f.uuid === this.props.page.get('data.start'));
+
+        // seconds
+        let endTime = 0;
+        let startTime = 0;
+        let totalSeconds = 0;
+
+        // calendar
+        if (calendar === 'month') {
+          // week
+          endTime = moment(this.props.date || new Date()).endOf('month').toDate().getTime();
+          startTime = moment(this.props.date || new Date()).startOf('month').toDate().getTime();
+          totalSeconds = moment(this.props.date || new Date()).endOf('month').toDate().getTime()
+            - moment(this.props.date || new Date()).startOf('month').toDate().getTime();
+        } else if (calendar === 'week') {
+          // week
+          endTime = moment(this.props.date || new Date()).endOf('week').toDate().getTime();
+          startTime = moment(this.props.date || new Date()).startOf('week').toDate().getTime();
+          totalSeconds = moment(this.props.date || new Date()).endOf('week').toDate().getTime()
+            - moment(this.props.date || new Date()).startOf('week').toDate().getTime();
+        } else if (calendar === 'day') {
+          // units
+          endTime = moment(this.props.date || new Date()).endOf('day').toDate().getTime();
+          startTime = moment(this.props.date || new Date()).startOf('day').toDate().getTime();
+          totalSeconds = moment(this.props.date || new Date()).endOf('day').toDate().getTime()
+            - moment(this.props.date || new Date()).startOf('day').toDate().getTime();
+        }
+
+        // item start
+        let itemEnd = new Date(item.get(end.name || end.uuid) || new Date()).getTime();
+        let itemStart = new Date(item.get(start.name || start.uuid) || new Date()).getTime();
+
+        // set start
+        if (item.get('_change.start') && itemStart < startTime) {
+          itemStart = startTime;
+        }
+        if (item.get('_change.end') && itemEnd > endTime) {
+          itemEnd = endTime;
+        }
+
+        // get actual time
+        const actualStart = itemStart - startTime;
+        const actualEnd = itemEnd - itemStart;
+
+        // get left
+        let left = (actualStart / totalSeconds) * 100;
+        let width = (actualEnd / totalSeconds) * 100;
+
+        // get change
+        if (item.get('_change.start')) {
+          left = left - item.get('_change.start');
+        }
+
+        // set width
+        width = (width + (item.get('_change.start') || 0)) - (item.get('_change.end') || 0);
+
+        // left/right
+        if (left < 0) left = 0;
+        if (width > (100 - left)) width = (100 - left);
+
+        // return
+        return `margin-left: ${left.toFixed(2)}%; width: ${width.toFixed(2)}%`;
+      }
+
+      /**
+       * get query
+       */
+      getQuery() {
+        // get form
+        const form = this.props.dashup.page(this.props.page.get('data.form'));
+        const calendar = this.props.page.get('user.calendar') || 'month';
+
+        // set query
+        let query = this.props.dashup.page(this.props.page.get('data.model'));
+
+        // loop forms
+        query = query.in('_meta.form', [this.props.page.get('data.form')]);
+
+        // load filter
+        let filter = null;
+
+        // try/catch
+        try {
+          filter = JSON.parse(this.props.page.get('data.filter'));
+        } catch (e) {}
+
+        // add initial where
+        if (filter) {
+          // add wheres
+          filter.forEach((where) => {
+            // where
+            query = query.where(where);
+          });
+        }
+
+        // search
+        if (this.props.search && this.props.search.length) {
+          // add search
+          query = query.search(this.props.search);
+        }
+
+        // test by user
+        if ((this.props.page.get('user.filter') || {}).me) {
+          // get user fields
+          const userFields = [...(form.get('data.fields') || [])].filter((f) => (this.props.page.get('data.user') || []).includes(f.uuid));
+          
+          // loop fields
+          query = query[userFields.length > 1 ? 'or' : 'where'](...(userFields.map((userField) => {
+            // return or
+            return {
+              [userField.name || userField.uuid] : this.props.dashup.get('_meta.member'),
+            };
+          })));
+        }
+
+        // user query
+        (this.props.page.get('user.where') || []).forEach((where) => {
+          // types
+          const numberTypes = ['gt', 'lt', 'gte', 'lte'];
+
+          // add query
+          query = query[where[0]](where[1], numberTypes.includes(where[0]) ? parseFloat(where[2]) : where[2]);
+        });
+
+        // get filter tags
+        if ((this.props.page.get('user.filter.tags') || []).length) {
+          // check vals
+          const tagFields = [...(form.get('data.fields') || [])].filter((f) => (this.props.page.get('data.tag') || []).includes(f.uuid));
+
+          // loop fields
+          query = query[tagFields.length > 1 ? 'or' : 'where'](...(tagFields.map((tagField) => {
+            // return or
+            return {
+              [tagField.name || tagField.uuid] : this.props.page.get('user.filter.tags')
+            };
+          })));
+        }
+
+        // get start/end
+        const end   = (form.get('data.fields') || []).find((f) => f.uuid === this.props.page.get('data.end'));
+        const start = (form.get('data.fields') || []).find((f) => f.uuid === this.props.page.get('data.start'));
+
+        // start end date
+        let endDate   = null;
+        let startDate = null;
+
+        // calendar
+        if (calendar === 'month') {
+          // week
+          endDate = moment(this.props.date || new Date()).endOf('month').toDate();
+          startDate = moment(this.props.date || new Date()).startOf('month').toDate();
+        } else if (calendar === 'week') {
+          // week
+          endDate = moment(this.props.date || new Date()).endOf('week').toDate();
+          startDate = moment(this.props.date || new Date()).startOf('week').toDate();
+        } else if (calendar === 'day') {
+          // units
+          endDate = moment(this.props.date || new Date()).endOf('day').toDate();
+          startDate = moment(this.props.date || new Date()).startOf('day').toDate();
+        }
+
+        // add where
+        query = query.gte(end.name || end.uuid, startDate);
+        query = query.lte(start.name || start.uuid, endDate);
+
+        console.log(query);
+
+        // return query
+        return query;
+      }
+
+      /**
+       * get props
+       */
+      getItemProps() {
+        // clone
+        const newProps = { ...(this.props) };
+
+        // delete
+        delete newProps.ref;
+        delete newProps.type;
+        delete newProps.item;
+        delete newProps.view;
+        delete newProps.class;
+        delete newProps.struct;
+        delete newProps.onItem;
+
+        // return
+        return newProps;
       }
 
 
@@ -54,4 +731,59 @@
       }
     }
   </script>
+
+  <style>
+    .avatar {
+      width        : 3rem;
+      margin-right : 1rem;
+    }
+    .field-user-view {
+      font-size   : 1.09375rem;
+      font-weight : 300;
+    }
+
+    .calendar-col {
+      padding     : .25rem;
+      min-width   : 5rem;
+      border-left : 1px solid rgba(0, 0, 0, 0.125);
+    }
+    .calendar-wrapper {
+      position : relative;
+    }
+    .calendar-content {
+      top      : 0;
+      left     : 0;
+      right    : 0;
+      bottom   : 0;
+      position : absolute;
+    }
+    .calendar-cols {
+      position   : relative;
+      overflow-x : scroll;
+    }
+    .calendar-item {
+      margin-bottom : 1rem;
+    }
+
+    .card-task {
+      position : relative;
+    }
+    .resize-left,
+    .resize-right {
+      top        : 0;
+      width      : .5rem;
+      height     : 100%;
+      bottom     : 0;
+      cursor     : col-resize;
+      z-index    : 2;
+      position   : absolute;
+      background : transparent;
+    }
+    .resize-left {
+      left : 0;
+    }
+    .resize-right {
+      right : 0;
+    }
+  </style>
 </page-schedule-view>
