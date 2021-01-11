@@ -1,9 +1,6 @@
 <page-schedule-view>
   <div class="schedule d-flex flex-1">
-    <div if={ state.loading } class="text-center my-4">
-      <i class="h1 fa fa-spinner fa-spin m-auto" />
-    </div>
-    <div if={ !state.loading } class="calendar-wrapper w-100 flex-1">
+    <div class="calendar-wrapper w-100 flex-1">
 
       <!-- BACKGROUND -->
       <div class="row h-100">
@@ -23,7 +20,13 @@
       <!-- / BACKGROUND -->
 
       <!-- ITEMS -->
-      <div if={ state.group && state.groups } class="calendar-content">
+      <div if={ state.loading } class="calendar-content">
+        <p class="lead">
+          &nbsp;
+        </p>
+        <i class="h1 fa fa-spinner fa-spin m-auto" />
+      </div>
+      <div if={ !state.loading && state.group && state.groups } class="calendar-content">
         <p class="lead">
           &nbsp;
         </p>
@@ -145,8 +148,9 @@
         }
 
         // check search
-        if (this.search !== this.props.search) {
+        if (this.search !== this.props.search || this.date !== this.props.date) {
           // init
+          this.date   = this.props.date;
           this.search = this.props.search;
           this.init();
         }
