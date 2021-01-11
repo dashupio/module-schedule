@@ -1,9 +1,9 @@
-Dashup Module Application
+Dashup Module Schedule
 &middot;
-[![Latest Github release](https://img.shields.io/github/release/dashup/module-application.svg)](https://github.com/dashup/module-application/releases/latest)
+[![Latest Github release](https://img.shields.io/github/release/dashup/module-schedule.svg)](https://github.com/dashup/module-schedule/releases/latest)
 =====
 
-A connect interface for application on [dashup](https://dashup.io).
+A connect interface for schedule on [dashup](https://dashup.io).
 
 ## Contents
 * [Get Started](#get-started)
@@ -11,7 +11,7 @@ A connect interface for application on [dashup](https://dashup.io).
 
 ## Get Started
 
-This application connector adds applications functionality to Dashup applications:
+This schedule connector adds schedules functionality to Dashup schedules:
 
 ```json
 {
@@ -26,5 +26,5 @@ To start the connection to dashup:
 
 ## Deployment
 
-1. `docker build -t dashup/module-application .`
-2. `docker run -d -v /path/to/.dashup.json:/usr/src/module/.dashup.json dashup/module-application`
+1. `docker build -t dashup/module-schedule .`
+2. `docker run -d -v /path/to/.dashup.json:/usr/src/module/.dashup.json dashup/module-schedule`
