@@ -26,11 +26,11 @@
         </p>
         <i class="h1 fa fa-spinner fa-spin m-auto" />
       </div>
-      <div if={ !state.loading && state.group && state.groups } class="calendar-content">
+      <div if={ !state.loading && state.group && state.groups } class="calendar-content d-flex flex-column">
         <p class="lead">
           &nbsp;
         </p>
-        <div class="row" each={ (group, i) in state.groups }>
+        <div class="row flex-1" each={ (group, i) in state.groups }>
           <div class="col-lg-3 col-xl-2">
             <div class={ `d-flex flex-row mb-3 schedule-group ${state.group.view ? `${state.group.view}-field` : `field-${state.group.type}-view`}` }>
               <div is={ state.group.view ? `${state.group.view}-field` : `field-${state.group.type}-view` } view="view" field={ state.group } value={ group } { ...(getProps()) } />
@@ -44,7 +44,6 @@
         </div>
       </div>
       <!-- / ITEMS -->
-
       
     </div>
   </div>
@@ -142,9 +141,15 @@
         if (typeof window === 'undefined') return;
 
         // set ps
-        if (!this.$('.ps') && this.$('.calendar-cols')) {
+        if (!this.$('.ps') && this.$('.calendar-content > .row > .col-lg-9')) {
           // perfect scrollbar
-          this.ps = new PerfectScrollbar(this.$('.calendar-cols'));
+          this.ps = new PerfectScrollbar(this.$('.calendar-content > .row > .col-lg-9'));
+
+          // on scroll
+          this.$('.calendar-content > .row > .col-lg-9').addEventListener('ps-scroll-x', (e) => {
+            // left
+            this.$('.calendar-cols').style = `margin-left : -${e.target.scrollLeft}px`;
+          });
         }
 
         // check search
@@ -761,9 +766,12 @@
       bottom   : 0;
       position : absolute;
     }
-    .calendar-cols {
+    .calendar-content > .row > .col-lg-9 {
       position   : relative;
       overflow-x : scroll;
+    }
+    .calendar-wrapper > .row > .col-lg-9 {
+      overflow-x : hidden;
     }
     .calendar-item {
       margin-bottom : 1rem;

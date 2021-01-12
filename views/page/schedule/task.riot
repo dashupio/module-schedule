@@ -1,4 +1,4 @@
-<page-calendar-task>
+<page-schedule-task>
   <div if={ !props.item.get('archived') } class={ `card card-sm card-task card-${getColor()}` } onclick={ (e) => onClick(e) } data-id={ props.item.get('_id') } id={ `task-${props.item.get('_id')}` } if={ !loading('backlog') }>
     <div class="resize-left" />
     <div class="resize-right" />
@@ -238,4 +238,4 @@
       }
     }
   </script>
-</page-calendar-task>
+</page-schedule-task>
