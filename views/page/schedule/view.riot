@@ -297,7 +297,6 @@
 
         // move
         const move = (ea) => {
-          console.log('moveeee');
           // new pos
           const pos = ea.clientX;
 
@@ -310,10 +309,8 @@
           // set value
           item.set($(e.target).is('.resize-left') ? '_change.start' : '_change.end', percent);
 
-          console.log('change', percent);
-
           // position
-          $(`[data-id="${id}"][is="page-calendar-task"]`).attr('style', this.getPosition(item));
+          $(`[data-id="${id}"][is="page-schedule-task"]`).attr('style', this.getPosition(item));
         };
 
         // resize element
