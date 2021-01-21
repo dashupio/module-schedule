@@ -1,50 +1,64 @@
 <page-schedule-view>
-  <div class="schedule d-flex flex-1">
-    <div class="calendar-wrapper w-100 flex-1">
+  <div>
+    <a href="#!" class="d-block alert alert-info mb-3" if={ !props.page.get('data.model') } onclick={ (e) => props.onConfig(e) }>
+      <i class="fa fa-exclamation-triangle mr-2" />
+      Please select a <b>model</b> for the schedule.
+    </a>
+    <a href="#!" class="d-block alert alert-info mb-3" if={ !props.page.get('data.form') } onclick={ (e) => props.onConfig(e) }>
+      <i class="fa fa-exclamation-triangle mr-2" />
+      Please select a <b>form</b> for the schedule.
+    </a>
+    <a href="#!" class="d-block alert alert-info mb-3" if={ !props.page.get('data.group') } onclick={ (e) => props.onConfig(e) }>
+      <i class="fa fa-exclamation-triangle mr-2" />
+      Please select a <b>grouping</b> for the schedule.
+    </a>
+    <div if={ props.page.get('data.model') && props.page.get('data.form') && props.page.get('data.group') } class="schedule d-flex flex-1">
+      <div class="calendar-wrapper w-100 flex-1">
 
-      <!-- BACKGROUND -->
-      <div class="row h-100">
-        <div class="col-xl-2 col-lg-3">
-          
-        </div>
-        <div class="col-xl-10 col-lg-9">
-          <div class="d-flex flex-row calendar-cols h-100">
-            <div each={ (unit, i) in getUnits() } class="flex-1 calendar-col">
-              <p class="text-center lead w-100">
-                { getTitle(unit) }
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- / BACKGROUND -->
-
-      <!-- ITEMS -->
-      <div if={ state.loading } class="calendar-content">
-        <p class="lead">
-          &nbsp;
-        </p>
-        <i class="h1 fa fa-spinner fa-spin m-auto" />
-      </div>
-      <div if={ !state.loading && state.group && state.groups } class="calendar-content d-flex flex-column">
-        <p class="lead">
-          &nbsp;
-        </p>
-        <div class="row flex-1" each={ (group, i) in state.groups }>
-          <div class="col-lg-3 col-xl-2">
-            <div class={ `d-flex flex-row mb-3 schedule-group ${state.group.view ? `${state.group.view}-field` : `field-${state.group.type}-view`}` }>
-              <div is={ state.group.view ? `${state.group.view}-field` : `field-${state.group.type}-view` } view="view" field={ state.group } value={ group } { ...(getProps()) } />
-            </div>
+        <!-- BACKGROUND -->
+        <div class="row h-100">
+          <div class="col-xl-2 col-lg-3">
+            
           </div>
           <div class="col-xl-10 col-lg-9">
-            <div class="calendar-items">
-              <div is="page-schedule-task" data-id={ item.get('_id') } style={ getPosition(item) } each={ (item, i) in getItems(group) } item={ item } form-fields={ props.context.fields } on-item={ (e) => onItem(e, item) } { ...getItemProps() } />
+            <div class="d-flex flex-row calendar-cols h-100">
+              <div each={ (unit, i) in getUnits() } class="flex-1 calendar-col">
+                <p class="text-center lead w-100">
+                  { getTitle(unit) }
+                </p>
+              </div>
             </div>
           </div>
         </div>
+        <!-- / BACKGROUND -->
+
+        <!-- ITEMS -->
+        <div if={ state.loading } class="calendar-content">
+          <p class="lead">
+            &nbsp;
+          </p>
+          <i class="h1 fa fa-spinner fa-spin m-auto" />
+        </div>
+        <div if={ !state.loading && state.group && state.groups } class="calendar-content d-flex flex-column">
+          <p class="lead">
+            &nbsp;
+          </p>
+          <div class="row flex-1" each={ (group, i) in state.groups }>
+            <div class="col-lg-3 col-xl-2">
+              <div class={ `d-flex flex-row mb-3 schedule-group ${state.group.view ? `${state.group.view}-field` : `field-${state.group.type}-view`}` }>
+                <div is={ state.group.view ? `${state.group.view}-field` : `field-${state.group.type}-view` } view="view" field={ state.group } value={ group } { ...(getProps()) } />
+              </div>
+            </div>
+            <div class="col-xl-10 col-lg-9">
+              <div class="calendar-items">
+                <div is="page-schedule-task" data-id={ item.get('_id') } style={ getPosition(item) } each={ (item, i) in getItems(group) } item={ item } form-fields={ props.context.fields } on-item={ (e) => onItem(e, item) } { ...getItemProps() } />
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- / ITEMS -->
+        
       </div>
-      <!-- / ITEMS -->
-      
     </div>
   </div>
 
@@ -101,6 +115,7 @@
 
         // add listeners
         this.props.page.on('do.data.form', this.init);
+        this.props.page.on('do.data.group', this.init);
         this.props.page.on('do.data.model', this.init);
         this.props.page.on('do.user.where', this.init);
         this.props.page.on('do.user.filter', this.init);
@@ -118,6 +133,7 @@
         // add listeners
         this.props.page.removeListener('do.data.form', this.init);
         this.props.page.removeListener('do.data.model', this.init);
+        this.props.page.removeListener('do.data.group', this.init);
         this.props.page.removeListener('do.user.where', this.init);
         this.props.page.removeListener('do.user.filter', this.init);
         this.props.page.removeListener('do.data.filter', this.init);
