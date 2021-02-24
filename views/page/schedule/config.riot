@@ -19,16 +19,9 @@
         
       <div class="mb-3">
         <label class="form-label">
-          Start Date
+          Date Field
         </label>
-        <eden-select on-change={ (e, val) => onStart(val) } ref={ ref('start') } placeholder="Select Field" data={ getStart() } />
-      </div>
-        
-      <div class="mb-3">
-        <label class="form-label">
-          End Date
-        </label>
-        <eden-select on-change={ (e, val) => onEnd(val) } ref={ ref('end') } placeholder="Select Field" data={ getEnd() } />
+        <eden-select on-change={ (e, val) => onDate(val) } ref={ ref('date') } placeholder="Select Field" data={ getDate() } />
       </div>
         
       <div class="mb-3">
@@ -119,23 +112,12 @@
       /**
        * on model
        */
-      onStart(val) {
+      onDate(val) {
         // get value
-        if (!val) val = this.refs.start.val();
+        if (!val) val = this.refs.date.val();
 
         // set model
-        this.props.data('start', val || null);
-      }
-
-      /**
-       * on model
-       */
-      onEnd(val) {
-        // get value
-        if (!val) val = this.refs.end.val();
-
-        // set model
-        this.props.data('end', val || null);
+        this.props.data('date', val || null);
       }
 
       /**
@@ -223,29 +205,14 @@
       /**
        * get field
        */
-      getStart() {
+      getDate() {
         // return value
-        return this.props.context.fields.map((field) => {
+        return [...(this.props.context.fields)].filter((field) => ['date'].includes(field.type)).map((field) => {
           // return value
           return {
             name     : field.label,
             value    : field.uuid,
-            selected : this.props.page.get('data.start') === field.uuid,
-          };
-        });
-      }
-
-      /**
-       * get field
-       */
-      getEnd() {
-        // return value
-        return this.props.context.fields.map((field) => {
-          // return value
-          return {
-            name     : field.label,
-            value    : field.uuid,
-            selected : this.props.page.get('data.end') === field.uuid,
+            selected : this.props.page.get('data.date') === field.uuid,
           };
         });
       }
