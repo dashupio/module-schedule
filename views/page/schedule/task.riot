@@ -9,7 +9,7 @@
           { tag.label }
         </button>
 
-        <button class="btn btn-sm btn-outline-primary" id={ `tag-${props.item.get('_id')}` } onclick={ (e) => props.addTag(e, props.item, type) } data-toggle="tooltip" title={ type.label }>
+        <button class="btn btn-sm btn-outline-primary" id={ `tag-${props.item.get('_id')}` } onclick={ (e) => props.addTag(e, props.item, type) } data-toggle="tooltip" title={ type && type.label }>
           <i class="fa fa-tag" />
         </button>
       </template>
@@ -25,7 +25,7 @@
           { getAvatar(user) ? '' : getShortName(user) }
         </button>
 
-        <button if={ hasUser() } class="btn btn-sm btn-outline-primary btn-circle" id={ `user-${props.item.get('_id')}` } onclick={ (e) => props.addUser(e, props.item, type) } data-toggle="tooltip" title={ type.label }>
+        <button if={ hasUser() } class="btn btn-sm btn-outline-primary btn-circle" id={ `user-${props.item.get('_id')}` } onclick={ (e) => props.addUser(e, props.item, type) } data-toggle="tooltip" title={ type && type.label }>
           <i class="fa fa-plus" />
         </button>
       </template>
