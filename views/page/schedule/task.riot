@@ -1,7 +1,7 @@
 <page-schedule-task>
   <div if={ !props.item.get('archived') } class={ `card card-sm card-task card-${getColor()}` } onclick={ (e) => onClick(e) } data-id={ props.item.get('_id') } id={ `task-${props.item.get('_id')}` } if={ !loading('backlog') }>
-    <div class="resize-left" />
-    <div class="resize-right" />
+    <div class="resize-left" if={ props.page.get('user.calendar') === 'day' } />
+    <div class="resize-right" if={ props.page.get('user.calendar') === 'day' } />
     <div if={ getColor() } class="color-strip" />
     <div if={ hasTags() } class="card-header tags p-2 pb-1 dropdown">
       <template each={ (type, a) in getTagTypes() }>
@@ -15,7 +15,7 @@
       </template>
     </div>
 
-    <div class={ `card-body ${hasTags() ? ' pt-2' : ''}` }>
+    <div class={ `card-body ${hasTags() ? ' pt-2' : ''} text-overflow` }>
       <hbs template={ props.page.get('data.display') || '' } data={ props.item ? props.item.toJSON() : {} } />
     </div>
 

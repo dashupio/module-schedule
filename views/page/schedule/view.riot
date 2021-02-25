@@ -20,16 +20,20 @@
       <div class="calendar-wrapper w-100 flex-1">
 
         <!-- BACKGROUND -->
-        <div class="row h-100">
-          <div class="col-xl-2 col-lg-3">
-            
-          </div>
-          <div class="col-xl-10 col-lg-9">
-            <div class="d-flex flex-row calendar-cols h-100">
-              <div each={ (unit, i) in getUnits() } class="flex-1 calendar-col">
-                <p class="text-center lead w-100">
-                  { getTitle(unit) }
-                </p>
+        <div class="calendar-bg">
+          <div class="row h-100">
+            <div class="col-xl-2 col-lg-3">
+              
+            </div>
+            <div class="col-xl-10 col-lg-9">
+              <div class="main-scroller h-100 d-flex">
+                <div class={ `d-flex flex-row calendar-cols cols-${props.page.get('user.calendar') || 'month'} h-100` }>
+                  <div each={ (unit, i) in getUnits() } class="flex-1 calendar-col">
+                    <p class="text-center lead w-100">
+                      { getTitle(unit) }
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -37,23 +41,17 @@
         <!-- / BACKGROUND -->
 
         <!-- ITEMS -->
-        <div if={ state.loading } class="calendar-content">
-          <p class="lead">
-            &nbsp;
-          </p>
+        <div if={ state.loading } class="calendar-content mt-5">
           <i class="h1 fa fa-spinner fa-spin m-auto" />
         </div>
-        <div if={ !state.loading && state.group && state.groups } class="calendar-content d-flex flex-column">
-          <p class="lead">
-            &nbsp;
-          </p>
+        <div if={ !state.loading && state.group && state.groups } class="calendar-content d-flex flex-column mt-5">
           <div class="row flex-1" each={ (group, i) in state.groups }>
             <div class="col-lg-3 col-xl-2">
               <div class={ `d-flex flex-row mb-3 schedule-group ${state.group.view ? `${state.group.view}-field` : `field-${state.group.type}-view`}` }>
                 <div is={ state.group.view ? `${state.group.view}-field` : `field-${state.group.type}-view` } view="view" field={ state.group } value={ group } { ...(getProps()) } />
               </div>
             </div>
-            <div class="col-xl-10 col-lg-9">
+            <div class="col-xl-10 col-lg-9 inner-scroller">
               <div class="calendar-items">
                 <div is="page-schedule-task" data-id={ item.get('_id') } style={ getPosition(item) } each={ (item, i) in getItems(group) } item={ item } form-fields={ props.context.fields } on-item={ (e) => onItem(e, item) } { ...getItemProps() } />
               </div>
@@ -165,15 +163,24 @@
         if (typeof window === 'undefined') return;
 
         // set ps
-        if (!this.$('.ps') && this.$('.calendar-content > .row > .col-lg-9')) {
+        if (!this.$('.ps') && this.$('.main-scroller')) {
           // perfect scrollbar
-          this.ps = new PerfectScrollbar(this.$('.calendar-content > .row > .col-lg-9'));
+          this.ps = new PerfectScrollbar(this.$('.main-scroller'));
 
           // on scroll
-          this.$('.calendar-content > .row > .col-lg-9').addEventListener('ps-scroll-x', (e) => {
+          this.$('.main-scroller').addEventListener('ps-scroll-x', (e) => {
             // left
-            this.$('.calendar-cols').style = `margin-left : -${e.target.scrollLeft}px`;
+            this.$$('.calendar-items').forEach((cols) => {
+              // set style
+              $(cols).css('margin-left', `-${e.target.scrollLeft}px`);
+            });
           });
+        }
+
+        // set bg height
+        if (this.$('.calendar-bg')) {
+          // set height
+          $(this.$('.calendar-bg')).height($('.dashup-page-schedule').height());
         }
 
         // check search
@@ -547,7 +554,7 @@
         const calendar = this.props.page.get('user.calendar') || 'month';
 
         // fix width
-        $('.calendar-items', this.root).width($('.calendar-cols', this.root).prop('scrollWidth'));
+        $('.calendar-items', this.root).width($('.main-scroller', this.root).prop('scrollWidth'));
 
         // get start/end
         const dateField = (form.get('data.fields') || []).find((f) => f.uuid === this.props.page.get('data.date'));
@@ -585,9 +592,9 @@
         }
 
         // start/end
-        let rowEnd     = new Date(dateValue.end || 0);
-        let rowUntil   = ((dateValue.rep || {}).ends || 'forever') !== 'forever' && !isNaN(new Date(dateValue.until).getTime()) ? new Date(dateValue.until) : null;
-        const rowStart = new Date(dateValue.start || 0);
+        let rowEnd   = new Date(dateValue.end || 0);
+        let rowUntil = ((dateValue.rep || {}).ends || 'forever') !== 'forever' && !isNaN(new Date(dateValue.until).getTime()) ? new Date(dateValue.until) : null;
+        let rowStart = new Date(dateValue.start || 0);
 
         // end
         if (!dateValue.end && dateValue.duration) {
@@ -610,12 +617,19 @@
             if (moment.range(new Date(startTime), new Date(endTime)).overlaps(subRange)) {
               // return accum
               rowEnd = nextEnd;
+              rowStart = next.toDate();
               break;
             }
 
             // add
             next.add(dateValue.rep.amount || 1, dateValue.rep.period || 'minute');
           }
+        }
+
+        // fix days
+        if (['month', 'week'].includes(this.props.page.get('user.calendar') || 'month')) {
+          rowEnd = moment(rowEnd).endOf('day').toDate();
+          rowStart = moment(rowStart).startOf('day').toDate();
         }
 
         // item start
@@ -839,6 +853,12 @@
       min-width   : 5rem;
       border-left : 1px solid rgba(0, 0, 0, 0.125);
     }
+    .cols-week > .calendar-col {
+      min-width : 10rem;
+    }
+    .cols-month > .calendar-col {
+      min-width : 15rem;
+    }
     .calendar-wrapper {
       position : relative;
     }
@@ -849,17 +869,25 @@
       bottom   : 0;
       position : absolute;
     }
-    .calendar-content > .row > .col-lg-9 {
-      position   : relative;
-      overflow-x : scroll;
-    }
-    .calendar-wrapper > .row > .col-lg-9 {
+    .inner-scroller {
       overflow-x : hidden;
+    }
+    .main-scroller {
+      position : relative;
     }
     .calendar-item {
       margin-bottom : 1rem;
     }
-
+    .calendar-bg {
+      top      : 0;
+      left     : 0;
+      right    : 0;
+      bottom   : 0;
+      position : absolute;
+    }
+    .calendar-cols {
+      min-width : 100%;
+    }
     .card-task {
       position : relative;
     }
