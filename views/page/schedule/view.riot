@@ -53,7 +53,7 @@
             </div>
             <div class="col-xl-10 col-lg-9 inner-scroller">
               <div class="calendar-items">
-                <div is="page-schedule-task" data-id={ item.get('_id') } style={ getPosition(item) } each={ (item, i) in getItems(group) } item={ item } form-fields={ props.context.fields } on-item={ (e) => onItem(e, item) } { ...getItemProps() } />
+                <div is="page-schedule-task" each={ (item, i) in getItems(group) } data-id={ item[1].get('_id') } data-range={ `${item[0].start.toDate().toISOString()},${item[0].end.toDate().toISOString()}` } style={ getPosition(item) } item={ item[1] } form-fields={ props.context.fields } on-item={ (e) => onItem(e, item[1]) } { ...getItemProps() } />
               </div>
             </div>
           </div>
@@ -182,6 +182,9 @@
           // set height
           $(this.$('.calendar-bg')).height($('.dashup-page-schedule').height());
         }
+
+        // set width
+        $('.calendar-items', this.root).width($('.main-scroller', this.root).prop('scrollWidth'));
 
         // check search
         if (this.search !== this.props.search || this.date !== this.props.date) {
@@ -530,7 +533,31 @@
       getItems(group) {
         // form
         const form = this.props.dashup.page(this.props.page.get('data.form'));
+        const calendar = this.props.page.get('user.calendar') || 'month';
+        const dateField = (form.get('data.fields') || []).find((f) => f.uuid === this.props.page.get('data.date'));
         const groupField = (form.get('data.fields') || []).find((f) => f.uuid === this.props.page.get('data.group'));
+
+        // check field
+        if (!dateField) return [];
+
+        // seconds
+        let end = this.props.date || new Date();
+        let start = this.props.date || new Date();
+
+        // calendar
+        if (calendar === 'month') {
+          // week
+          end = moment(this.props.date || new Date()).endOf('month').toDate();
+          start = moment(this.props.date || new Date()).startOf('month').toDate();
+        } else if (calendar === 'week') {
+          // week
+          end = moment(this.props.date || new Date()).endOf('week').toDate();
+          start = moment(this.props.date || new Date()).startOf('week').toDate();
+        } else if (calendar === 'day') {
+          // units
+          end = moment(this.props.date || new Date()).endOf('day').toDate();
+          start = moment(this.props.date || new Date()).startOf('day').toDate();
+        }
 
         // return items
         return (this.state.data || []).filter((item) => {
@@ -542,28 +569,70 @@
 
           // stringified
           return val.find((v) => JSON.stringify(v) === JSON.stringify(group));
+        }).reduce((accum, item) => {
+          // get date
+          const dateValue = item.get(dateField.name || dateField.uuid);
+
+          // start/end
+          let rowEnd   = new Date(dateValue.end || 0);
+          let rowUntil = ((dateValue.rep || {}).ends || 'forever') !== 'forever' && !isNaN(new Date(dateValue.until).getTime()) ? new Date(dateValue.until) : null;
+          let rowStart = new Date(dateValue.start || 0);
+
+          // end
+          if (!dateValue.end && dateValue.duration) {
+            // duration add
+            rowEnd = new Date(rowStart.getTime() + dateValue.duration);
+          }
+
+          // range
+          const dateRange = moment.range(rowStart, rowEnd);
+          
+          // all matches
+          if (dateValue.repeat !== true) {
+            accum.push([dateRange, item]);
+            return accum;
+          }
+
+          // next date
+          let next = moment(rowStart);
+          const range = moment.range(start, end);
+
+          // chech while
+          while (next.toDate() <= end) {
+            // get end
+            const nextEnd = new Date(next.toDate().getTime() + (dateValue.duration || 0));
+            const subRange = moment.range(next.toDate(), nextEnd);
+
+            // check ends within or starts within
+            if (subRange.overlaps(range)) {
+              // return accum
+              accum.push([subRange, item]);
+            }
+
+            // add
+            next.add(dateValue.rep.amount || 1, dateValue.rep.period || 'minute');
+          }
+          
+          // return accum
+          return accum;
+        }, []).sort(([a], [b]) => {
+          // sort order
+          const aS = a.start.toDate();
+          const bS = b.start.toDate();
+
+          // check order
+          if (bS > aS) return -1;
+          if (bS < aS) return 1;
+          return 0;
         });
       }
 
       /**
        * get item position
        */
-      getPosition(item) {
-        // form
-        const form = this.props.dashup.page(this.props.page.get('data.form'));
+      getPosition([range, item]) {
+        // get calendar
         const calendar = this.props.page.get('user.calendar') || 'month';
-
-        // fix width
-        $('.calendar-items', this.root).width($('.main-scroller', this.root).prop('scrollWidth'));
-
-        // get start/end
-        const dateField = (form.get('data.fields') || []).find((f) => f.uuid === this.props.page.get('data.date'));
-
-        // date field
-        if (!dateField) return '';
-
-        // get date
-        const dateValue = item.get(dateField.name || dateField.uuid);
 
         // seconds
         let endTime = 0;
@@ -592,39 +661,8 @@
         }
 
         // start/end
-        let rowEnd   = new Date(dateValue.end || 0);
-        let rowUntil = ((dateValue.rep || {}).ends || 'forever') !== 'forever' && !isNaN(new Date(dateValue.until).getTime()) ? new Date(dateValue.until) : null;
-        let rowStart = new Date(dateValue.start || 0);
-
-        // end
-        if (!dateValue.end && dateValue.duration) {
-          // duration add
-          rowEnd = new Date(rowStart.getTime() + dateValue.duration);
-        }
-
-        // repeat
-        if (dateValue.repeat) {
-          // next date
-          let next = moment(rowStart);
-
-          // chech while
-          while (next.toDate() < new Date(endTime)) {
-            // get end
-            const nextEnd = new Date(next.toDate().getTime() + (dateValue.duration || 0));
-            const subRange = moment.range(next.toDate(), nextEnd);
-
-            // check ends within or starts within
-            if (moment.range(new Date(startTime), new Date(endTime)).overlaps(subRange)) {
-              // return accum
-              rowEnd = nextEnd;
-              rowStart = next.toDate();
-              break;
-            }
-
-            // add
-            next.add(dateValue.rep.amount || 1, dateValue.rep.period || 'minute');
-          }
-        }
+        let rowEnd   = range.end;
+        let rowStart = range.start;
 
         // fix days
         if (['month', 'week'].includes(this.props.page.get('user.calendar') || 'month')) {
@@ -632,17 +670,13 @@
           rowStart = moment(rowStart).startOf('day').toDate();
         }
 
+        // fix start/end
+        if (rowStart < startTime) rowStart = new Date(startTime);
+        if (rowEnd > endTime) rowEnd = new Date(endTime);
+
         // item start
         let itemEnd = rowEnd.getTime();
         let itemStart = rowStart.getTime();
-
-        // set start
-        if (item.get('_change.start') && itemStart < startTime) {
-          itemStart = startTime;
-        }
-        if (item.get('_change.end') && itemEnd > endTime) {
-          itemEnd = endTime;
-        }
 
         // get actual time
         const actualStart = itemStart - startTime;
@@ -651,6 +685,9 @@
         // get left
         let left = (actualStart / totalSeconds) * 100;
         let width = (actualEnd / totalSeconds) * 100;
+
+        // width fix
+        if (width < 0) width = width * -1;
 
         // get change
         if (item.get('_change.start')) {
@@ -779,15 +816,15 @@
           [`${dateField.name || dateField.uuid}.repeat`] : true,
           [`${dateField.name || dateField.uuid}.until`] : null,
           [`${dateField.name || dateField.uuid}.start`] : {
-            $gt : startDate,
+            $lt : endDate,
           },
         }, {
           [`${dateField.name || dateField.uuid}.repeat`] : true,
           [`${dateField.name || dateField.uuid}.until`] : {
-            $lt : endDate,
+            $gt : endDate,
           },
           [`${dateField.name || dateField.uuid}.start`] : {
-            $gt : startDate,
+            $lt : endDate,
           },
         });
 
