@@ -319,15 +319,19 @@
         // resizing
         this.resizing = true;
 
+        // let change
+        let change = null;
+
         // get item
         const id = $(e.target).closest('[data-id]').attr('data-id');
         const form = this.props.dashup.page(this.props.page.get('data.form'));
         const item = this.state.data.find((i) => i.get('_id') === id);
+        const range = moment.range(...($(e.target).closest('[data-range]').attr('data-range').split(',')));
         const calendar = this.props.page.get('user.calendar') || 'month';
+        const dateField = (form.get('data.fields') || []).find((f) => f.uuid === this.props.page.get('data.date'));
 
         // get start/end
-        const end   = (form.get('data.fields') || []).find((f) => f.uuid === this.props.page.get('data.end'));
-        const start = (form.get('data.fields') || []).find((f) => f.uuid === this.props.page.get('data.start'));
+        const { start, end } = range;
 
         // get x/y
         const orig = e.clientX;
@@ -343,11 +347,14 @@
           // get percentage value
           const percent = parseFloat(((changeX / $('.calendar-cols', this.root).prop('scrollWidth')) * 100).toFixed(2));
 
-          // set value
-          item.set($(e.target).is('.resize-left') ? '_change.start' : '_change.end', percent);
+          // type
+          const type = $(e.target).is('.resize-left') ? 'start' : 'end';
+
+          // change
+          change = [type, type === 'end' ? percent * -1 : percent];
 
           // position
-          $(`[data-id="${id}"][is="page-schedule-task"]`).attr('style', this.getPosition(item));
+          $(`[data-id="${id}"][data-range="${range.start.toDate().toISOString()},${range.end.toDate().toISOString()}"]`).attr('style', this.getPosition([range, item, change]));
         };
 
         // resize element
@@ -356,79 +363,72 @@
           // remove
           $(document).off('mousemove', move);
 
-          // set change
-          const startPercent = item.get('_change.start');
-          const endPercent = item.get('_change.end');
+          // get percent
+          const [type, percent] = change;
 
           // seconds
-          let round = null;
-          let endTime = 0;
-          let startTime = 0;
-          let totalSeconds = 0;
+          let rangeEnd = this.props.date || new Date();
+          let rangeStart = this.props.date || new Date();
+          let rangeRound = null;
 
           // calendar
           if (calendar === 'month') {
             // week
-            round = (date) => {
+            rangeRound = (date) => {
               // return rounded to hour
               return new Date(Math.floor(date.getTime() / (60 * 60 * 1000)) * (60 * 60 * 1000));
             };
-            endTime = moment(this.props.date || new Date()).endOf('month').toDate().getTime();
-            startTime = moment(this.props.date || new Date()).startOf('month').toDate().getTime();
-            totalSeconds = moment(this.props.date || new Date()).endOf('month').toDate().getTime()
-              - moment(this.props.date || new Date()).startOf('month').toDate().getTime();
+
+            // week
+            rangeEnd = moment(this.props.date || new Date()).endOf('month').toDate();
+            rangeStart = moment(this.props.date || new Date()).startOf('month').toDate();
           } else if (calendar === 'week') {
             // week
-            round = (date) => {
+            rangeRound = (date) => {
               // return rounded to 15 minutes
               return new Date(Math.floor(date.getTime() / (15 * 60 * 1000)) * (15 * 60 * 1000));
             };
-            endTime = moment(this.props.date || new Date()).endOf('week').toDate().getTime();
-            startTime = moment(this.props.date || new Date()).startOf('week').toDate().getTime();
-            totalSeconds = moment(this.props.date || new Date()).endOf('week').toDate().getTime()
-              - moment(this.props.date || new Date()).startOf('week').toDate().getTime();
+
+            // week
+            rangeEnd = moment(this.props.date || new Date()).endOf('week').toDate();
+            rangeStart = moment(this.props.date || new Date()).startOf('week').toDate();
           } else if (calendar === 'day') {
             // week
-            round = (date) => {
+            rangeRound = (date) => {
               // return rounded to 1 minute
               return new Date(Math.floor(date.getTime() / (60 * 1000)) * (60 * 1000));
             };
-            endTime = moment(this.props.date || new Date()).endOf('day').toDate().getTime();
-            startTime = moment(this.props.date || new Date()).startOf('day').toDate().getTime();
-            totalSeconds = moment(this.props.date || new Date()).endOf('day').toDate().getTime()
-              - moment(this.props.date || new Date()).startOf('day').toDate().getTime();
+
+            // units
+            rangeEnd = moment(this.props.date || new Date()).endOf('day').toDate();
+            rangeStart = moment(this.props.date || new Date()).startOf('day').toDate();
           }
 
-          // unset change
-          item.set('_change', {});
+          // total
+          const rangeTotal = rangeEnd.getTime() - rangeStart.getTime();
+
+          // change
+          const secondsOfChange = parseInt(rangeTotal * (percent / 100));
+
+          // get times
+          let itemEnd = new Date(item.get(`${dateField.name || dateField.uuid}.end`) || new Date());
+          let itemStart = new Date(item.get(`${dateField.name || dateField.uuid}.start`) || new Date());
 
           // start percent
-          if (startPercent) {
-            // change
-            const secondsOfChange = parseInt(totalSeconds * (startPercent / 100));
-            
+          if (type === 'start') {
             // item start
-            let itemStart = new Date(item.get(start.name || start.uuid)).getTime();
-
-            // check time
-            if (itemStart < startTime) itemStart = startTime;
-
-            // set date
-            item.set(start.name || start.uuid, round(new Date(itemStart - secondsOfChange)));
+            itemStart = rangeRound(new Date(itemStart.getTime() - secondsOfChange));
           }
-          if (endPercent) {
-            // change
-            const secondsOfChange = parseInt(totalSeconds * (endPercent / 100));
-            
-            // item start
-            let itemEnd = new Date(item.get(end.name || end.uuid)).getTime();
-
-            // check time
-            if (itemEnd > endTime) itemEnd = endTime;
-
-            // set date
-            item.set(end.name || end.uuid, round(new Date(itemEnd - secondsOfChange)));
+          if (type === 'end') {
+            // set start
+            itemEnd = rangeRound(new Date(itemEnd.getTime() + secondsOfChange));
           }
+
+          // set duration
+          item.set(`${dateField.name || dateField.uuid}.end`, new Date(itemEnd));
+          item.set(`${dateField.name || dateField.uuid}.start`, new Date(itemStart));
+          item.set(`${dateField.name || dateField.uuid}.dur.type`, 'until');
+          item.set(`${dateField.name || dateField.uuid}.duration`, itemEnd - itemStart);
 
           // save item
           item.save();
@@ -630,7 +630,7 @@
       /**
        * get item position
        */
-      getPosition([range, item]) {
+      getPosition([range, item, change]) {
         // get calendar
         const calendar = this.props.page.get('user.calendar') || 'month';
 
@@ -661,8 +661,8 @@
         }
 
         // start/end
-        let rowEnd   = range.end;
-        let rowStart = range.start;
+        let rowEnd   = range.end.toDate();
+        let rowStart = range.start.toDate();
 
         // fix days
         if (['month', 'week'].includes(this.props.page.get('user.calendar') || 'month')) {
@@ -690,12 +690,15 @@
         if (width < 0) width = width * -1;
 
         // get change
-        if (item.get('_change.start')) {
-          left = left - item.get('_change.start');
+        if (change && change[0] === 'start') {
+          left = left - change[1];
+          width = width + change[1];
         }
 
-        // set width
-        width = (width + (item.get('_change.start') || 0)) - (item.get('_change.end') || 0);
+        // get change
+        if (change && change[0] === 'end') {
+          width = width + change[1];
+        }
 
         // left/right
         if (left < 0) left = 0;
