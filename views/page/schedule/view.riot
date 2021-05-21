@@ -822,6 +822,12 @@
             $lt : endDate,
           },
         }, {
+          [`${dateField.name || dateField.uuid}.repeat`]   : true,
+          [`${dateField.name || dateField.uuid}.rep.ends`] : 'forever',
+          [`${dateField.name || dateField.uuid}.start`]    : {
+            $lt : endDate,
+          },
+        }, {
           [`${dateField.name || dateField.uuid}.repeat`] : true,
           [`${dateField.name || dateField.uuid}.until`] : {
             $gt : endDate,

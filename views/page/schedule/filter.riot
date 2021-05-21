@@ -1,5 +1,5 @@
 <page-schedule-filter>
-  <dashup-page-filter tags={ getTags().length ? getTags() : null } fields={ props.context.fields } has-user={ props.page.get('data.user') } on-search={ (e) => onSearch(e) } { ...getProps() } />
+  <dashup-page-filter class="d-flex w-100" tags={ getTags().length ? getTags() : null } has-user={ props.page.get('data.user') } on-search={ (e) => onSearch(e) } { ...getProps() } />
 
   <script>
     // export default
@@ -31,7 +31,8 @@
 
         // delete fields
         delete newProps.is;
-        delete newProps.fields;
+        delete newProps.class;
+        delete newProps.viewclass;
 
         // return new props
         return newProps;
