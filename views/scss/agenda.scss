@@ -1,0 +1,73 @@
+@import './variables';
+
+.rbc-agenda-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 0;
+  overflow: auto;
+
+  .rbc-header {
+    border-left : 0;
+  }
+
+  table.rbc-agenda-table {
+    width: 100%;
+    border: $border-width solid $calendar-border;
+    border-spacing: 0;
+    border-collapse: collapse;
+
+    tbody > tr > td {
+      padding: ($spacer / 2) $spacer;
+      vertical-align: top;
+    }
+
+    .rbc-agenda-time-cell {
+      padding-left: $spacer;
+      padding-right: $spacer;
+      text-transform: lowercase;
+    }
+
+    .rbc-rtl & {
+      tbody > tr > td + td {
+        border-left-width: 0;
+        border-right: $border-width solid $cell-border;
+      }
+    }
+
+    tbody > tr + tr {
+      border-top: $border-width solid $cell-border;
+    }
+
+    thead > tr > th {
+      padding: ($spacer / 2) $spacer;
+      text-align: left;
+      border-bottom: $border-width solid $cell-border;
+
+      .rbc-rtl & {
+        text-align: right;
+      }
+    }
+  }
+}
+
+.rbc-agenda-time-cell {
+  text-transform: lowercase;
+
+  .rbc-continues-after:after {
+    content: ' »'
+  }
+  .rbc-continues-prior:before {
+    content: '« '
+  }
+}
+
+.rbc-agenda-date-cell,
+.rbc-agenda-time-cell {
+  white-space: nowrap;
+}
+
+
+
+.rbc-agenda-event-cell {
+  width: 100%
+}

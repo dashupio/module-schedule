@@ -40,7 +40,7 @@ export default class SchedulePage extends Struct {
    */
   get title() {
     // return page type label
-    return 'Schedule Page';
+    return 'Schedule View';
   }
 
   /**
@@ -59,10 +59,8 @@ export default class SchedulePage extends Struct {
   get views() {
     // return object of views
     return {
-      view   : 'page/schedule/view',
-      menu   : 'page/schedule/menu',
+      view   : 'page/schedule',
       config : 'page/schedule/config',
-      filter : 'page/schedule/filter',
     };
   }
 
@@ -79,7 +77,7 @@ export default class SchedulePage extends Struct {
    */
   get description() {
     // return description string
-    return 'Scheduleation view page';
+    return 'Schedule View';
   }
 
   /**
