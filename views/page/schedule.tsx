@@ -341,6 +341,39 @@ const PageSchedule = (props = {}) => {
     return moment().format('YYYY-MM-DD') === moment(date).format('YYYY-MM-DD');
   };
 
+  // set tag
+  const setTag = async (field, value) => {
+    // set tag
+    let tags = (props.page.get('user.filter.tags') || []).filter((t) => typeof t === 'object');
+
+    // check tag
+    if (tags.find((t) => t.field === field.uuid && t.value === (value?.value || value))) {
+      // exists
+      tags = tags.filter((t) => t.field !== field.uuid || t.value !== (value?.value || value));
+    } else {
+      // push tag
+      tags.push({
+        field : field.uuid,
+        value : (value?.value || value),
+      });
+    }
+
+    // set data
+    await props.setUser('filter.tags', tags);
+  };
+
+  // set search
+  const setSearch = (search = '') => {
+    // set page data
+    props.page.set('user.search', search.length ? search : null);
+  };
+
+  // set filter
+  const setFilter = async (filter) => {
+    // set data
+    props.setUser('query', filter, true);
+  };
+
   // use effect
   useEffect(() => {
     // find
@@ -352,7 +385,37 @@ const PageSchedule = (props = {}) => {
         label : 'Unassigned',
       }, ...groups]);
     });
-  }, [props.page && props.page.get('_id'), date, props.page && props.page.get('data.model'), props.page && props.page.get('data.group')]);
+
+    // on update
+    const onUpdate = () => {
+      setUpdated(new Date());
+    };
+
+    // add listener
+    props.page.on('data.group', onUpdate);
+    props.page.on('data.filter', onUpdate);
+    props.page.on('user.search', onUpdate);
+    props.page.on('user.filter.me', onUpdate);
+    props.page.on('user.filter.tags', onUpdate);
+
+    // return fn
+    return () => {
+      // remove listener
+      props.page.removeListener('data.group', onUpdate);
+      props.page.removeListener('data.filter', onUpdate);
+      props.page.removeListener('user.search', onUpdate);
+      props.page.removeListener('user.filter.me', onUpdate);
+      props.page.removeListener('user.filter.tags', onUpdate);
+    };
+  }, [
+    props.page.get('_id'),
+    props.page.get('type'),
+    props.page.get('data.group'),
+    props.page.get('data.filter'),
+    props.page.get('user.search'),
+    props.page.get('user.filter.me'),
+    props.page.get('user.filter.tags'),
+  ]);
 
   // return jsx
   return (
@@ -392,7 +455,7 @@ const PageSchedule = (props = {}) => {
         </Dropdown>
         
       </Page.Menu>
-      SUB MENU
+      <Page.Filter onSearch={ setSearch } onTag={ setTag } onFilter={ setFilter } isString />
       <Page.Body>
         <div className="d-flex flex-1 fit-content">
           <Calendar
