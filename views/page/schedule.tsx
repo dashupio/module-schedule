@@ -45,8 +45,10 @@ const PageSchedule = (props = {}) => {
 
   // state
   const [date, setDate] = useState(new Date());
+  const [form, setForm] = useState(null);
   const [view, setView] = useState(props.page.get('data.view') && views[props.page.get('data.view')] ? props.page.get('data.view') : 'week');
   const [data, setData] = useState([]);
+  const [share, setShare] = useState(false);
   const [groups, setGroups] = useState([]);
   const [config, setConfig] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -421,9 +423,11 @@ const PageSchedule = (props = {}) => {
   return (
     <Page { ...props } loading={ loading } require={ required } bodyClass="flex-column">
 
+      <Page.Share show={ share } onHide={ (e) => setShare(false) } />
+      { !!props.item && <Page.Item show item={ props.item } form={ form } setItem={ props.setItem } onHide={ (e) => props.setItem(null) } /> }
       <Page.Config show={ config } onHide={ (e) => setConfig(false) } />
 
-      <Page.Menu onConfig={ () => setConfig(true) } onShare>
+      <Page.Menu onConfig={ () => setConfig(true) } presence={ props.presence } onShare={ () => setShare(true) }>
         <Dropdown>
           <Dropdown.Toggle variant="light" id="dropdown-limit" className="me-2">
             View:
@@ -440,20 +444,40 @@ const PageSchedule = (props = {}) => {
               );
             }) }
           </Dropdown.Menu>
-
-          <button className={ `btn me-1 btn-primary${isToday() ? ' disabled' : ''}` } onClick={ (e) => setDate(new Date()) }>
-            { isToday() ? 'Today' : moment(date).format('LL') }
-          </button>
-          <div className="btn-group me-2">
-            <button className="btn btn-primary" onClick={ (e) => onPrev(e) } data-toggle="tooltip" title="Previous">
-              <i className="fa fa-chevron-left" />
-            </button>
-            <button className="btn btn-primary" onClick={ (e) => onNext(e) } data-toggle="tooltip" title="Next">
-              <i className="fa fa-chevron-right" />
-            </button>
-          </div>
         </Dropdown>
-        
+
+        <button className={ `btn me-1 btn-primary${isToday() ? ' disabled' : ''}` } onClick={ (e) => setDate(new Date()) }>
+          { isToday() ? 'Today' : moment(date).format('LL') }
+        </button>
+        <div className="btn-group me-2">
+          <button className="btn btn-primary" onClick={ (e) => onPrev(e) } data-toggle="tooltip" title="Previous">
+            <i className="fa fa-chevron-left" />
+          </button>
+          <button className="btn btn-primary" onClick={ (e) => onNext(e) } data-toggle="tooltip" title="Next">
+            <i className="fa fa-chevron-right" />
+          </button>
+        </div>
+        { props.dashup.can(props.page, 'submit') && !!props.getForms().length && (
+          <Dropdown>
+            <Dropdown.Toggle variant="primary" id="dropdown-create" className="me-2">
+              <i className="fat fa-plus me-2" />
+              Create
+            </Dropdown.Toggle>
+
+            <Dropdown.Menu>
+              { props.getForms().map((form) => {
+
+                // return jsx
+                return (
+                  <Dropdown.Item key={ `create-${form.get('_id')}` } onClick={ (e) => !setForm(form.get('_id')) && props.setItem(new props.dashup.Model()) }>
+                    <i className={ `me-2 fa-${form.get('icon') || 'pencil fas'}` } />
+                    { form.get('name') }
+                  </Dropdown.Item>
+                );
+              }) }
+            </Dropdown.Menu>
+          </Dropdown>
+        ) }
       </Page.Menu>
       <Page.Filter onSearch={ setSearch } onTag={ setTag } onFilter={ setFilter } isString />
       <Page.Body>
