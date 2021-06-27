@@ -458,25 +458,32 @@ const PageSchedule = (props = {}) => {
           </button>
         </div>
         { props.dashup.can(props.page, 'submit') && !!props.getForms().length && (
-          <Dropdown>
-            <Dropdown.Toggle variant="primary" id="dropdown-create" className="me-2">
-              <i className="fat fa-plus me-2" />
-              Create
-            </Dropdown.Toggle>
-
-            <Dropdown.Menu>
-              { props.getForms().map((form) => {
-
-                // return jsx
-                return (
-                  <Dropdown.Item key={ `create-${form.get('_id')}` } onClick={ (e) => !setForm(form.get('_id')) && props.setItem(new props.dashup.Model()) }>
-                    <i className={ `me-2 fa-${form.get('icon') || 'pencil fas'}` } />
-                    { form.get('name') }
-                  </Dropdown.Item>
-                );
-              }) }
-            </Dropdown.Menu>
-          </Dropdown>
+          props.getForms().length > 1 ? (
+            <Dropdown>
+              <Dropdown.Toggle variant="primary" id="dropdown-create" className="me-2">
+                <i className="fat fa-plus me-2" />
+                Create
+              </Dropdown.Toggle>
+  
+              <Dropdown.Menu>
+                { props.getForms().map((form) => {
+  
+                  // return jsx
+                  return (
+                    <Dropdown.Item key={ `create-${form.get('_id')}` } onClick={ (e) => !setForm(form.get('_id')) && props.setItem(new props.dashup.Model({}, props.dashup)) }>
+                      <i className={ `me-2 fa-${form.get('icon') || 'pencil fas'}` } />
+                      { form.get('name') }
+                    </Dropdown.Item>
+                  );
+                }) }
+              </Dropdown.Menu>
+            </Dropdown>
+          ) : (
+            <button className="btn btn-primary me-2" onClick={ (e) => !setForm(props.getForms()[0].get('_id')) && props.setItem(new props.dashup.Model({}, props.dashup)) }>
+              <i className={ `me-2 fa-${props.getForms()[0].get('icon') || 'pencil fas'}` } />
+              { props.getForms()[0].get('name') }
+            </button>
+          )
         ) }
       </Page.Menu>
       <Page.Filter onSearch={ setSearch } onTag={ setTag } onFilter={ setFilter } isString />
