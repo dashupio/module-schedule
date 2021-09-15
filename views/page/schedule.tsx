@@ -1,5 +1,7 @@
 
 import Moment from 'moment'
+import dotProp from 'dot-prop';
+import Simplebar from 'simplebar-react';
 import { Page, Card } from '@dashup/ui';
 import { extendMoment } from 'moment-range';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop'
@@ -40,14 +42,17 @@ const PageSchedule = (props = {}) => {
   const views = {
     'day'       : 'Day',
     'week'      : 'Week',
+    'schedule'  : 'Schedule',
     'work_week' : 'Work Week',
+    'month'     : 'Month',
   };
 
   // state
   const [date, setDate] = useState(new Date());
   const [form, setForm] = useState(null);
-  const [view, setView] = useState(props.page.get('data.view') && views[props.page.get('data.view')] ? props.page.get('data.view') : 'week');
+  const [view, setView] = useState(props.page.get('data.view') && views[props.page.get('data.view')] ? props.page.get('data.view') : 'work_week');
   const [data, setData] = useState([]);
+  const [items, setItems] = useState([]);
   const [share, setShare] = useState(false);
   const [groups, setGroups] = useState([]);
   const [config, setConfig] = useState(false);
@@ -87,8 +92,11 @@ const PageSchedule = (props = {}) => {
       return members.map((member) => {
         // return key
         return {
+          ...member,
+
           by    : groupBy,
           key   : groupBy.name || groupBy.uuid,
+          type  : 'member',
           label : member.label,
           value : member.value,
         };
@@ -145,11 +153,15 @@ const PageSchedule = (props = {}) => {
     let startDate = null;
 
     // calendar
-    if (['week', 'work_week'].includes(view)) {
+    if (['week', 'work_week', 'schedule'].includes(view)) {
       // week
       endDate = moment(date).endOf('week').toDate();
       startDate = moment(date).startOf('week').toDate();
-    } else if (view === 'day') {
+    } else if (view === 'month') {
+      // units
+      endDate = moment(date).endOf('month').toDate();
+      startDate = moment(date).startOf('month').toDate();
+    }else if (view === 'day') {
       // units
       endDate = moment(date).endOf('day').toDate();
       startDate = moment(date).startOf('day').toDate();
@@ -157,24 +169,31 @@ const PageSchedule = (props = {}) => {
 
     // add where
     query = query.or({
+      // range included in date
       [`${dateField.name || dateField.uuid}.end`] : {
-        $lt : endDate,
+        $ne : null,
+        $gt : startDate,
       },
       [`${dateField.name || dateField.uuid}.start`] : {
+        $lt : endDate,
+      },
+    }, {
+      // single date included in date
+      [`${dateField.name || dateField.uuid}.end`]   : null,
+      [`${dateField.name || dateField.uuid}.start`] : {
+        $lt : endDate,
         $gt : startDate,
       },
     }, {
-      [`${dateField.name || dateField.uuid}.repeat`] : null,
-      [`${dateField.name || dateField.uuid}.start`] : {
-        $lt : endDate,
-      },
-    }, {
+      // repeated forever
       [`${dateField.name || dateField.uuid}.repeat.ends`] : 'forever',
       [`${dateField.name || dateField.uuid}.start`]    : {
         $lt : endDate,
       },
     }, {
+      // repeated until
       [`${dateField.name || dateField.uuid}.repeat.until`] : {
+        $ne : null,
         $gt : startDate,
       },
       [`${dateField.name || dateField.uuid}.start`] : {
@@ -187,7 +206,7 @@ const PageSchedule = (props = {}) => {
   };
 
   // get items
-  const getItems = () => {
+  const getItems = (localItems = data) => {
     // get items
     const forms = props.getForms([props.page.get('data.model')]);
     const fields = props.getFields(forms);
@@ -207,10 +226,14 @@ const PageSchedule = (props = {}) => {
     let startDate = null;
 
     // calendar
-    if (['week', 'work_week'].includes(view)) {
+    if (['week', 'work_week', 'schedule'].includes(view)) {
       // week
       endDate = moment(date).endOf('week').toDate();
       startDate = moment(date).startOf('week').toDate();
+    } else if (view === 'month') {
+      // units
+      endDate = moment(date).endOf('month').toDate();
+      startDate = moment(date).startOf('month').toDate();
     } else if (view === 'day') {
       // units
       endDate = moment(date).endOf('day').toDate();
@@ -221,7 +244,7 @@ const PageSchedule = (props = {}) => {
     const range = moment.range(startDate, endDate);
 
     // push items
-    return data.reduce((subAccum, item) => {
+    return localItems.reduce((subAccum, item) => {
       // get start
       const start = new Date(item.get(`${dateField.name || dateField.uuid}.start`));
       const end   = item.get(`${dateField.name || dateField.uuid}.end`) ?
@@ -278,8 +301,10 @@ const PageSchedule = (props = {}) => {
               item,
               id     : `${item.get('_id')}-${subRange.end.format('LL')}`,
               end    : subRange.end.toDate(),
+              range  : subRange,
               field  : dateField,
               start  : subRange.start.toDate(),
+              allDay : dateField.date === 'date',
               repeat : item.get(`${dateField.name || dateField.uuid}.repeat`),
             });
           }
@@ -290,8 +315,10 @@ const PageSchedule = (props = {}) => {
       } else {
         // return item
         mapValues({
-          id    : item.get('_id'),
-          field : dateField,
+          id     : item.get('_id'),
+          field  : dateField,
+          range  : moment.range(start, end),
+          allDay : dateField.date === 'date',
           end,
           item,
           start,
@@ -303,6 +330,23 @@ const PageSchedule = (props = {}) => {
     }, []);
   };
 
+  // get dates
+  const getDates = () => {
+    // start of week
+    const ends = moment(date).endOf('week').add(1, 'day').toDate().getTime();
+    const dates = [];
+    let newDate = moment(date).startOf('week').add(1, 'day').toDate();
+
+    // while
+    while (newDate.getTime() <= ends) {
+      dates.push(moment(newDate).startOf('day'));
+      newDate = moment(newDate).add(1, 'day').toDate();
+    }
+
+    // return dates
+    return dates;
+  };
+
   // on prev
   const onPrev = (e) => {
     // prevent
@@ -310,9 +354,13 @@ const PageSchedule = (props = {}) => {
     e.stopPropagation();
     
     // check date
-    if (['week', 'work_week'].includes(view)) {
+    if (['week', 'work_week', 'schedule'].includes(view)) {
       // add one month
       return setDate(moment(date).subtract(1, 'week').toDate());
+    }
+    if (view === 'month') {
+      // add one month
+      return setDate(moment(date).subtract(1, 'month').toDate());
     }
     if (view === 'day') {
       // add one month
@@ -327,14 +375,42 @@ const PageSchedule = (props = {}) => {
     e.stopPropagation();
     
     // check date
-    if (['week', 'work_week'].includes(view)) {
+    if (['week', 'work_week', 'schedule'].includes(view)) {
       // add one month
       return setDate(moment(date).add(1, 'week').toDate());
+    }
+    if (view === 'month') {
+      // add one month
+      setDate(moment(date).add(1, 'month').toDate());
     }
     if (view === 'day') {
       // add one month
       setDate(moment(date).add(1, 'day').toDate());
     }
+  };
+
+  // on create
+  const onCreate = (data) => {
+    // get items
+    const forms = props.getForms([props.page.get('data.model')]);
+    const fields = props.getFields(forms);
+    const dateField = props.getField(props.page.get('data.date'), fields);
+    const groupField = props.getField(props.page.get('data.group'), fields);
+
+    // group
+    const group = groups.find((g) => g.value === data.resourceId);
+    
+    // set item
+    setForm(props.getForms()[0].get('_id'));
+    props.setItem(new props.dashup.Model({
+      [dateField.name || dateField.uuid] : {
+        end      : data.end,
+        type     : 'date',
+        start    : data.start,
+        duration : (data.end.getTime() - data.start.getTime()),
+      },
+      [groupField.name || groupField.uuid] : group?.data,
+    }, props.dashup));
   };
 
   // is today
@@ -378,20 +454,35 @@ const PageSchedule = (props = {}) => {
 
   // use effect
   useEffect(() => {
-    // find
-    loadGroups().then(async (groups) => {
-      // load items
-      setData(await getQuery().listen());
-      setGroups([{
-        value : '0',
-        label : 'Unassigned',
-      }, ...groups]);
-    });
+    // let items
+    let localItems = null;
 
     // on update
     const onUpdate = () => {
       setUpdated(new Date());
     };
+    const onItems = () => {
+      setItems(getItems(localItems));
+    };
+
+    // find
+    loadGroups().then(async (groups) => {
+      // items
+      localItems = await getQuery().listen();
+
+      // load items
+      setData(localItems);
+      setGroups([{
+        type  : 'unassigned',
+        value : '0',
+        label : 'Unassigned',
+      }, ...groups]);
+      setItems(getItems(localItems));
+
+      // on update
+      localItems.on('update', onItems);
+      localItems.on('update', onUpdate);
+    });
 
     // add listener
     props.page.on('data.group', onUpdate);
@@ -408,9 +499,16 @@ const PageSchedule = (props = {}) => {
       props.page.removeListener('user.search', onUpdate);
       props.page.removeListener('user.filter.me', onUpdate);
       props.page.removeListener('user.filter.tags', onUpdate);
+
+      // if
+      if (localItems) {
+        localItems.deafen();
+        localItems.removeListener('update', onItems);
+        localItems.removeListener('update', onUpdate);
+      }
     };
   }, [
-    props.page.get('_id'),
+    view,
     props.page.get('type'),
     props.page.get('data.group'),
     props.page.get('data.filter'),
@@ -489,83 +587,187 @@ const PageSchedule = (props = {}) => {
       <Page.Filter onSearch={ setSearch } onTag={ setTag } onFilter={ setFilter } isString />
       <Page.Body>
         <div className="d-flex flex-1 fit-content">
-          <Calendar
-            view={ view }
-            views={['day', 'week', 'work_week']}
-            onView={ () => {} }
-            
-
-            date={ date }
-            onNavigate={ () => {} }
-            onEventDrop={ ({ start, end, event, resourceId }) => {
-              // get groupBy field
-              const groupBy = props.getFields().find((f) => f.uuid === props.page.get('data.group'));
-              
-              // set item
-              event.item.set(`${groupBy.name || groupBy.uuid}`, resourceId === '0' ? null : resourceId);
-              event.item.set(`${event.field.name || event.field.uuid}.end`, end);
-              event.item.set(`${event.field.name || event.field.uuid}.start`, start);
-              event.item.save();
-              setUpdated(new Date());
-            } }
-            onEventResize={ ({ start, end, event, resourceId }) => {
-              // get groupBy field
-              const groupBy = props.getFields().find((f) => f.uuid === props.page.get('data.group'));
-
-              // set item
-              event.item.set(`${groupBy.name || groupBy.uuid}`, resourceId === '0' ? null : resourceId);
-              event.item.set(`${event.field.name || event.field.uuid}.end`, end);
-              event.item.set(`${event.field.name || event.field.uuid}.start`, start);
-              event.item.save();
-              setUpdated(new Date());
-            } }
-
-            components={ {
-              event : (subProps = {}) => {
-                // repeat
-                const repeat = subProps.event.repeat;
-
-                // return event
-                return (
-                  <OverlayTrigger
-                    overlay={
-                      <Tooltip>
-                        { moment(subProps.event.start).format('hh:mm a') } - { moment(subProps.event.end).format('hh:mm a') }
-                      </Tooltip>
-                    }
-                    placement="top"
-                  >
-                    <div className="h-100 w-100">
-                      <Card
-                        key={ `schedule-item-${subProps.event.item.get('_id')}` }
-                        size="sm"
-                        item={ subProps.event.item }
-                        page={ props.page }
-                        group={ 'schedule' }
-                        dashup={ props.dashup }
-                        template={ props.page.get('data.display') }
-                        getField={ props.getField }
-                        repeat={ !!repeat && (
-                          <Tooltip>
-                            Repeats every { repeat?.amount > 1 ? `${repeat.amount.toLocaleString()} ${repeat.period || 'day'}s` : (repeat.period || 'day') }
-                            { repeat?.ends && repeat.until === 'until' ? ` until ${moment(repeat.until).format('LL')}` : '' }
-                          </Tooltip>
+          { view === 'schedule' ? (
+            <Simplebar className="ox-hidden shift-wrapper">
+              <div className="row g-0">
+                <div className="shift-column">
+                  <div className="shift-header">
+                    &nbsp;
+                  </div>
+                  { groups.map((group) => {
+                    // group
+                    return (
+                      <div key={ group.value } className="shift-slot">
+                        { group.type !== 'unassigned' && (
+                          <>
+                            { group.type === 'member' && (
+                              <img src={ dotProp.get(group, 'data.avatar.0.thumbs.2x-sq.url') || '/public/assets/images/avatar.png' } className="img-avatar rounded-circle me-3" />
+                            ) }
+                            { group.label }
+                          </>
                         ) }
-                      />
-                    </div>
-                  </OverlayTrigger>
-                );
-              },
-            } }
+                      </div>
+                    );
+                  }) }
+                </div>
+                <div className="flex-1 shift-columns">
+                  <Simplebar className="w-100">
+                    { getDates().map((date) => {
+                      // return jsx
+                      return (
+                        <div key={ `${date.toISOString()}`.toLowerCase() } className="shift-column">
+                          <div className="shift-header">
+                            { moment(date).format('dddd') }
+                            <span className="ms-auto">
+                              { moment(date).format('Do MMM') }
+                            </span>
+                          </div>
+                          { groups.map((group) => {
+                            // range
+                            const range = moment.range(date, moment(date).add(1, 'day').toDate());
 
-            events={ getItems() }
-            localizer={ localizer }
-            resources={ groups }
-            endAccessor="end"
-            startAccessor="start"
-            resourceIdAccessor="value"
-            resourceTitleAccessor="label"
-          />
+                            // get sub items
+                            const filteredItems = [...items].filter((item) => item.resourceId === group.value).filter((item) => {
+                              // check date
+                              return range.overlaps(item.range);
+                            });
+
+                            // group
+                            return (
+                              <div key={ `${date.toISOString()}-${group.value}` } className="shift-slot">
+                                { filteredItems.map((event) => {
+                                  // repeat
+                                  const repeat = event.repeat;
+
+                                  return (
+                                    <OverlayTrigger
+                                      key={ `${date.toISOString()}-${group.value}-${event.id}` }
+                                      overlay={
+                                        <Tooltip>
+                                          { event.allDay ? (
+                                            moment(event.start).format('MMM DD YYYY')
+                                          ) : (
+                                            `${moment(event.start).format('hh:mm a')} - ${moment(event.end).format('hh:mm a')}`
+                                          ) }
+                                        </Tooltip>
+                                      }
+                                      placement="top"
+                                    >
+                                      <div className="h-100 w-100">
+                                        <Card
+                                          key={ `schedule-item-${event.item.get('_id')}` }
+                                          size="sm"
+                                          item={ event.item }
+                                          page={ props.page }
+                                          group={ 'schedule' }
+                                          dashup={ props.dashup }
+                                          template={ props.page.get('data.display') }
+                                          getField={ props.getField }
+                                          repeat={ !!repeat && (
+                                            <Tooltip>
+                                              Repeats every { repeat?.amount > 1 ? `${repeat.amount.toLocaleString()} ${repeat.period || 'day'}s` : (repeat.period || 'day') }
+                                              { repeat?.ends && repeat.until === 'until' ? ` until ${moment(repeat.until).format('LL')}` : '' }
+                                            </Tooltip>
+                                          ) }
+                                          onClick={ () => !setForm(event.item.get('_meta.form') || props.getForms()[0].get('_id')) && props.setItem(event.item) }
+                                        />
+                                      </div>
+                                    </OverlayTrigger>
+                                  )
+                                }) }
+                              </div>
+                            );
+                          }) }
+                        </div>
+                      )
+                    }) }
+                  </Simplebar>
+                </div>
+              </div>
+            </Simplebar>
+          ) : (
+            <Calendar
+              view={ view }
+              step={ 30 }
+              views={ ['day', 'week', 'work_week', 'month'] }
+              onView={ () => {} }
+              selectable
+
+              date={ date }
+              onNavigate={ () => {} }
+              onEventDrop={ ({ start, end, event, resourceId }) => {
+                // get groupBy field
+                const groupBy = props.getFields().find((f) => f.uuid === props.page.get('data.group'));
+                
+                // set item
+                event.item.set(`${groupBy.name || groupBy.uuid}`, resourceId === '0' ? null : resourceId);
+                event.item.set(`${event.field.name || event.field.uuid}.end`, end);
+                event.item.set(`${event.field.name || event.field.uuid}.start`, start);
+                event.item.save();
+                setUpdated(new Date());
+              } }
+              onEventResize={ ({ start, end, event, resourceId }) => {
+                // get groupBy field
+                const groupBy = props.getFields().find((f) => f.uuid === props.page.get('data.group'));
+
+                // set item
+                event.item.set(`${groupBy.name || groupBy.uuid}`, resourceId === '0' ? null : resourceId);
+                event.item.set(`${event.field.name || event.field.uuid}.end`, end);
+                event.item.set(`${event.field.name || event.field.uuid}.start`, start);
+                event.item.save();
+                setUpdated(new Date());
+              } }
+              onSelectSlot={ onCreate }
+
+              components={ {
+                event : ({ event }) => {
+                  // repeat
+                  const repeat = event.repeat;
+
+                  // return event
+                  return (
+                    <OverlayTrigger
+                      overlay={
+                        <Tooltip>
+                          { moment(event.start).format('hh:mm a') } - { moment(event.end).format('hh:mm a') }
+                        </Tooltip>
+                      }
+                      placement="top"
+                    >
+                      <div className="h-100 w-100">
+                        <Card
+                          key={ `schedule-item-${event.item.get('_id')}` }
+                          size="sm"
+                          item={ event.item }
+                          page={ props.page }
+                          group={ 'schedule' }
+                          dashup={ props.dashup }
+                          template={ props.page.get('data.display') }
+                          getField={ props.getField }
+                          repeat={ !!repeat && (
+                            <Tooltip>
+                              Repeats every { repeat?.amount > 1 ? `${repeat.amount.toLocaleString()} ${repeat.period || 'day'}s` : (repeat.period || 'day') }
+                              { repeat?.ends && repeat.until === 'until' ? ` until ${moment(repeat.until).format('LL')}` : '' }
+                            </Tooltip>
+                          ) }
+                          onClick={ () => !setForm(event.item.get('_meta.form') || props.getForms()[0].get('_id')) && props.setItem(event.item) }
+                        />
+                      </div>
+                    </OverlayTrigger>
+                  );
+                },
+                
+              } }
+
+              events={ items }
+              localizer={ localizer }
+              resources={ groups }
+              endAccessor="end"
+              startAccessor="start"
+              resourceIdAccessor="value"
+              resourceTitleAccessor="label"
+            />
+          ) }
         </div>
       </Page.Body>
     </Page>

@@ -32,7 +32,7 @@ export default class SchedulePage extends Struct {
    */
   get icon() {
     // return page type label
-    return 'fa fa-calendar-check';
+    return 'fad fa-calendar-check text-info';
   }
 
   /**
@@ -40,7 +40,7 @@ export default class SchedulePage extends Struct {
    */
   get title() {
     // return page type label
-    return 'Schedule View';
+    return 'Schedule';
   }
 
   /**
@@ -77,7 +77,7 @@ export default class SchedulePage extends Struct {
    */
   get description() {
     // return description string
-    return 'Schedule View';
+    return 'Employee and Model scheduling';
   }
 
   /**

@@ -3,3 +3,81 @@ $spacer: 1rem;
 $border-width: 1px;
 
 @import '../scss/styles';
+
+.shift-column {
+  width          : ($spacer * 20);
+  display        : flex;
+  min-width      : ($spacer * 20);
+  min-height     : 100%;
+  border-right   : $border-width solid var(--bs-secondary-transparent);
+  flex-direction : column;
+
+  &:last-child {
+    border-right : 0;
+  }
+
+  .shift-header {
+    padding       : ($spacer / 2);
+    display       : flex;
+    align-items   : center;
+    font-weight   : bold;
+    border-bottom : $border-width solid var(--bs-secondary-transparent);
+
+    img {
+      max-height : ($spacer * 2);
+    }
+  }
+
+  .shift-slot {
+    width         : 100%;
+    height        : ($spacer * 6);
+    display       : flex;
+    padding       : ($spacer / 2);
+    align-items   : center;
+    border-bottom : $border-width solid var(--bs-secondary-transparent);
+
+    &:last-child {
+      border-bottom : 0;
+    }
+
+    .card-body.align-items-center {
+      display         : flex;
+      justify-content : center;
+    }
+  }
+}
+.shift-columns .simplebar-content {
+  display     : flex;
+  flex-wrap   : nowrap;
+  white-space : nowrap;
+}
+.shift-wrapper {
+
+  .row.g-0,
+  .simplebar-content,
+  .simplebar-wrapper,
+  .simplebar-content-wrapper {
+    min-height : 100%;
+  }
+}
+
+.rbc-time-content {
+  position        : relative;
+  overflow        : overlay;
+  scrollbar-color : rgba(0, 0, 0, 0.5) transparent;
+  scrollbar-width : thin;
+  
+  &::-webkit-scrollbar {
+    width  : .5rem;
+    height : .5rem;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background : transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    border-radius    : .5rem;
+    background-color : rgba(0, 0, 0, 0.5);
+  }
+}

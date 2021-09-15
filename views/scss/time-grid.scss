@@ -53,7 +53,7 @@
   flex-direction: row;
 
   &.rbc-overflowing {
-    border-right: $border-width solid $cell-border;
+    margin : 0!important;
   }
 
   .rbc-rtl &.rbc-overflowing {
