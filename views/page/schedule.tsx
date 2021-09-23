@@ -2,12 +2,11 @@
 import Moment from 'moment'
 import dotProp from 'dot-prop';
 import Simplebar from 'simplebar-react';
-import { Page, Card } from '@dashup/ui';
 import { extendMoment } from 'moment-range';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop'
 import * as BigCalendar from 'react-big-calendar';
 import React, { useState, useEffect } from 'react';
-import { Dropdown, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import { Page, Card, Dropdown, OverlayTrigger, Tooltip } from '@dashup/ui';
 
 // calendar
 const Calendar = withDragAndDrop(BigCalendar.Calendar);
