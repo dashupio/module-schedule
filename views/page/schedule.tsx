@@ -5,8 +5,8 @@ import Simplebar from 'simplebar-react';
 import { extendMoment } from 'moment-range';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop'
 import * as BigCalendar from 'react-big-calendar';
-import React, { useState, useEffect } from 'react';
-import { Page, Card, Dropdown, OverlayTrigger, Tooltip } from '@dashup/ui';
+import React, { useRef, useState, useEffect } from 'react';
+import { Page, Item, Button, MenuItem, IconButton, Icon, Menu, Tooltip } from '@dashup/ui';
 
 // calendar
 const Calendar = withDragAndDrop(BigCalendar.Calendar);
@@ -48,6 +48,7 @@ const PageSchedule = (props = {}) => {
 
   // state
   const [date, setDate] = useState(new Date());
+  const [open, setOpen] = useState(false);
   const [form, setForm] = useState(null);
   const [view, setView] = useState(props.page.get('data.view') && views[props.page.get('data.view')] ? props.page.get('data.view') : 'work_week');
   const [data, setData] = useState([]);
@@ -57,6 +58,9 @@ const PageSchedule = (props = {}) => {
   const [config, setConfig] = useState(false);
   const [loading, setLoading] = useState(false);
   const [updated, setUpdated] = useState(new Date());
+
+  // refs
+  const menuRef = useRef(null);
   
   // load groups
   const loadGroups = async () => {
@@ -525,62 +529,43 @@ const PageSchedule = (props = {}) => {
       <Page.Config show={ config } onHide={ (e) => setConfig(false) } />
 
       <Page.Menu onConfig={ () => setConfig(true) } presence={ props.presence } onShare={ () => setShare(true) }>
-        <Dropdown>
-          <Dropdown.Toggle variant="light" id="dropdown-limit" className="me-2">
-            View:
-            <b className="ms-1">{ views[props.page.get('data.view') || 'week'] }</b>
-          </Dropdown.Toggle>
+        <Button ref={ menuRef } variant="contained" onClick={ () => setOpen(true) }>
+          View:
+          { ' ' }
+          <b>{ views[view] }</b>
+        </Button>
+        <Menu
+          open={ open }
+          onClose={ () => setOpen(false) }
+          anchorEl={ menuRef?.current }
+        >
+          { Object.keys(views).map((key, i) => {
+            // return jsx
+            return (
+              <MenuItem key={ `view-${key}` } onClick={ (e) => !setView(key) && props.setUser('view', key) }>
+                { views[key] }
+              </MenuItem>
+            );
+          }) }
+        </Menu>
 
-          <Dropdown.Menu>
-            { Object.keys(views).map((key, i) => {
-              // return jsx
-              return (
-                <Dropdown.Item key={ `view-${key}` } onClick={ (e) => !setView(key) && props.setData('view', key) }>
-                  { views[key] }
-                </Dropdown.Item>
-              );
-            }) }
-          </Dropdown.Menu>
-        </Dropdown>
-
-        <button className={ `btn me-1 btn-primary${isToday() ? ' disabled' : ''}` } onClick={ (e) => setDate(new Date()) }>
+        <Button color="primary" variant="contained" disabled={ !!isToday() } onClick={ (e) => setDate(new Date()) }>
           { isToday() ? 'Today' : moment(date).format('LL') }
-        </button>
-        <div className="btn-group me-2">
-          <button className="btn btn-primary" onClick={ (e) => onPrev(e) } data-toggle="tooltip" title="Previous">
-            <i className="fa fa-chevron-left" />
-          </button>
-          <button className="btn btn-primary" onClick={ (e) => onNext(e) } data-toggle="tooltip" title="Next">
-            <i className="fa fa-chevron-right" />
-          </button>
-        </div>
+        </Button>
+
+        <IconButton onClick={ (e) => onPrev(e) }>
+          <Icon type="fas" icon="chevron-left" />
+        </IconButton>
+        <IconButton onClick={ (e) => onNext(e) }>
+          <Icon type="fas" icon="chevron-right" />
+        </IconButton>
+
         { props.dashup.can(props.page, 'submit') && !!props.getForms().length && (
-          props.getForms().length > 1 ? (
-            <Dropdown>
-              <Dropdown.Toggle variant="primary" id="dropdown-create" className="me-2">
-                <i className="fat fa-plus me-2" />
-                Create
-              </Dropdown.Toggle>
-  
-              <Dropdown.Menu>
-                { props.getForms().map((form) => {
-  
-                  // return jsx
-                  return (
-                    <Dropdown.Item key={ `create-${form.get('_id')}` } onClick={ (e) => !setForm(form.get('_id')) && props.setItem(new props.dashup.Model({}, props.dashup)) }>
-                      <i className={ `me-2 fa-${form.get('icon') || 'pencil fas'}` } />
-                      { form.get('name') }
-                    </Dropdown.Item>
-                  );
-                }) }
-              </Dropdown.Menu>
-            </Dropdown>
-          ) : (
-            <button className="btn btn-primary me-2" onClick={ (e) => !setForm(props.getForms()[0].get('_id')) && props.setItem(new props.dashup.Model({}, props.dashup)) }>
-              <i className={ `me-2 fa-${props.getForms()[0].get('icon') || 'pencil fas'}` } />
-              { props.getForms()[0].get('name') }
-            </button>
-          )
+          <Button variant="contained" color="primary" startIcon={ (
+            <Icon type="fas" icon={ props.getForms()[0].get('icon') || 'plus' } />
+          ) } onClick={ (e) => props.setItem(new props.dashup.Model({}, props.dashup)) }>
+            { props.getForms()[0].get('name') }
+          </Button>
         ) }
       </Page.Menu>
       <Page.Filter onSearch={ setSearch } onTag={ setTag } onFilter={ setFilter } isString />
@@ -639,39 +624,30 @@ const PageSchedule = (props = {}) => {
                                   const repeat = event.repeat;
 
                                   return (
-                                    <OverlayTrigger
-                                      key={ `${date.toISOString()}-${group.value}-${event.id}` }
-                                      overlay={
-                                        <Tooltip>
-                                          { event.allDay ? (
-                                            moment(event.start).format('MMM DD YYYY')
-                                          ) : (
-                                            `${moment(event.start).format('hh:mm a')} - ${moment(event.end).format('hh:mm a')}`
-                                          ) }
-                                        </Tooltip>
-                                      }
-                                      placement="top"
-                                    >
-                                      <div className="h-100 w-100">
-                                        <Card
-                                          key={ `schedule-item-${event.item.get('_id')}` }
-                                          size="sm"
-                                          item={ event.item }
-                                          page={ props.page }
-                                          group={ 'schedule' }
-                                          dashup={ props.dashup }
-                                          template={ props.page.get('data.display') }
-                                          getField={ props.getField }
-                                          repeat={ !!repeat && (
-                                            <Tooltip>
-                                              Repeats every { repeat?.amount > 1 ? `${repeat.amount.toLocaleString()} ${repeat.period || 'day'}s` : (repeat.period || 'day') }
-                                              { repeat?.ends && repeat.until === 'until' ? ` until ${moment(repeat.until).format('LL')}` : '' }
-                                            </Tooltip>
-                                          ) }
-                                          onClick={ () => !setForm(event.item.get('_meta.form') || props.getForms()[0].get('_id')) && props.setItem(event.item) }
-                                        />
-                                      </div>
-                                    </OverlayTrigger>
+                                    <Tooltip key={ `schedule-item-${event.item.get('_id')}` } title={ (
+                                      event.allDay ? (
+                                        moment(event.start).format('MMM DD YYYY')
+                                      ) : (
+                                        `${moment(event.start).format('hh:mm a')} - ${moment(event.end).format('hh:mm a')}`
+                                      )
+                                    ) }>
+                                      <Item
+                                        size="sm"
+                                        item={ event.item }
+                                        page={ props.page }
+                                        group={ 'schedule' }
+                                        dashup={ props.dashup }
+                                        template={ props.page.get('data.display') }
+                                        getField={ props.getField }
+                                        repeat={ !!repeat && (
+                                          <Tooltip>
+                                            Repeats every { repeat?.amount > 1 ? `${repeat.amount.toLocaleString()} ${repeat.period || 'day'}s` : (repeat.period || 'day') }
+                                            { repeat?.ends && repeat.until === 'until' ? ` until ${moment(repeat.until).format('LL')}` : '' }
+                                          </Tooltip>
+                                        ) }
+                                        onClick={ () => !setForm(event.item.get('_meta.form') || props.getForms()[0].get('_id')) && props.setItem(event.item) }
+                                      />
+                                    </Tooltip>
                                   )
                                 }) }
                               </div>
@@ -725,34 +701,25 @@ const PageSchedule = (props = {}) => {
 
                   // return event
                   return (
-                    <OverlayTrigger
-                      overlay={
-                        <Tooltip>
-                          { moment(event.start).format('hh:mm a') } - { moment(event.end).format('hh:mm a') }
-                        </Tooltip>
-                      }
-                      placement="top"
-                    >
-                      <div className="h-100 w-100">
-                        <Card
-                          key={ `schedule-item-${event.item.get('_id')}` }
-                          size="sm"
-                          item={ event.item }
-                          page={ props.page }
-                          group={ 'schedule' }
-                          dashup={ props.dashup }
-                          template={ props.page.get('data.display') }
-                          getField={ props.getField }
-                          repeat={ !!repeat && (
-                            <Tooltip>
-                              Repeats every { repeat?.amount > 1 ? `${repeat.amount.toLocaleString()} ${repeat.period || 'day'}s` : (repeat.period || 'day') }
-                              { repeat?.ends && repeat.until === 'until' ? ` until ${moment(repeat.until).format('LL')}` : '' }
-                            </Tooltip>
-                          ) }
-                          onClick={ () => !setForm(event.item.get('_meta.form') || props.getForms()[0].get('_id')) && props.setItem(event.item) }
-                        />
-                      </div>
-                    </OverlayTrigger>
+                    <Tooltip title={ `${moment(event.start).format('hh:mm a')} - ${moment(event.end).format('hh:mm a')}` }>
+                      <Item
+                        key={ `schedule-item-${event.item.get('_id')}` }
+                        size="sm"
+                        item={ event.item }
+                        page={ props.page }
+                        group={ 'schedule' }
+                        dashup={ props.dashup }
+                        template={ props.page.get('data.display') }
+                        getField={ props.getField }
+                        repeat={ !!repeat && (
+                          <Tooltip>
+                            Repeats every { repeat?.amount > 1 ? `${repeat.amount.toLocaleString()} ${repeat.period || 'day'}s` : (repeat.period || 'day') }
+                            { repeat?.ends && repeat.until === 'until' ? ` until ${moment(repeat.until).format('LL')}` : '' }
+                          </Tooltip>
+                        ) }
+                        onClick={ () => !setForm(event.item.get('_meta.form') || props.getForms()[0].get('_id')) && props.setItem(event.item) }
+                      />
+                    </Tooltip>
                   );
                 },
                 

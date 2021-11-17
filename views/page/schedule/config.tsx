@@ -1,7 +1,7 @@
 
 // import react
 import React from 'react';
-import { Query, View, Select } from '@dashup/ui';
+import { Query, View, TextField, MenuItem, Box, Divider } from '@dashup/ui';
 
 // create page model config
 const PageScheduleConfig = (props = {}) => {
@@ -63,123 +63,155 @@ const PageScheduleConfig = (props = {}) => {
     }).filter((f) => f);
   };
 
-  // on forms
-  const onModel = (value) => {
-    // set data
-    props.setData('model', value?.value);
-  };
-
-  // on forms
-  const onField = (tld, value) => {
-    // set data
-    props.setData(tld, value || null);
-  };
-
-  // on forms
-  const onForms = (value) => {
-    // set data
-    props.setData('forms', value.map((v) => v.value));
-  };
-
   // return jsx
   return (
     <>
-      <div className="mb-3">
-        <label className="form-label">
-          Choose Model
-        </label>
-        <Select options={ getModels() } defaultValue={ getModels().filter((f) => f.selected) } onChange={ onModel } isClearable />
-        <small>
-          View Dashboards with this grids items.
-        </small>
-      </div>
+      <TextField
+        label="Choose Model"
+        value={ props.page.get('data.model') }
+        select
+        onChange={ (e) => props.setData('model', e.target.value) }
+        fullWidth
+      >
+        { getModels().map((option) => {
+          // return jsx
+          return (
+            <MenuItem key={ option.value } value={ option.value }>
+              { option.label }
+            </MenuItem>
+          );
+        }) }
+      </TextField>
 
       { !!props.page.get('data.model') && (
-        <div className="mb-3">
-          <label className="form-label">
-            Schedule Form(s)
-          </label>
-          <Select options={ getForms() } defaultValue={ getForms().filter((f) => f.selected) } onChange={ onForms } isMulti />
-          <small>
-            The forms that this grid will filter by.
-          </small>
-        </div>
+        <TextField
+          label="Choose Form(s)"
+          value={ Array.isArray(props.page.get('data.forms')) ? props.page.get('data.forms') : [props.page.get('data.forms')].filter((f) => f) }
+          select
+          onChange={ (e) => props.setData('forms', e.target.value) }
+          fullWidth
+
+          SelectProps={ {
+            multiple : true,
+          } }
+        >
+          { getForms().map((option) => {
+            // return jsx
+            return (
+              <MenuItem key={ option.value } value={ option.value }>
+                { option.label }
+              </MenuItem>
+            );
+          }) }
+        </TextField>
       ) }
 
       { !!props.page.get('data.model') && props.getFields && !!props.getFields().length && (
         <>
-          <hr />
+          <Box my={ 2 }>
+            <Divider />
+          </Box>
 
-          <div className="mb-3">
-            <label className="form-label">
-              Date Field
-            </label>
-            <Select options={ getField('date', ['date']) } defaultValue={ getField('date', ['date']).filter((f) => f.selected) } onChange={ (value) => onField('date', value?.value) } isClearable />
-            <small>
-              Schedule date field.
-            </small>
-          </div>
+          <TextField
+            label="Date Field"
+            value={ props.page.get('data.date') }
+            select
+            onChange={ (e) => props.setData('date', e.target.value) }
+            fullWidth
+          >
+            { getField('date', ['date']).map((option) => {
+              // return jsx
+              return (
+                <MenuItem key={ option.value } value={ option.value }>
+                  { option.label }
+                </MenuItem>
+              );
+            }) }
+          </TextField>
             
-          <div className="mb-3">
-            <label className="form-label">
-              Group Field
-            </label>
-            <Select options={ getField('group') } defaultValue={ getField('group').filter((f) => f.selected) } onChange={ (value) => onField('group', value?.value) } isClearable />
-            <small>
-              Selecting a tag field will group the grid by this field.
-            </small>
-          </div>
-            
-          <div className="mb-3">
-            <label className="form-label">
-              Tag Field(s)
-            </label>
-            <Select options={ getField('tag', ['select', 'checkbox']) } defaultValue={ getField('tag', ['select', 'checkbox']).filter((f) => f.selected) } onChange={ (value) => onField('tag', value.map((v) => v.value)) } isMulti />
-            <small>
-              Selecting a tag field will allow you to tag tasks.
-            </small>
-          </div>
-            
-          <div className="mb-3">
-            <label className="form-label">
-              User Field(s)
-            </label>
-            <Select options={ getField('user', ['user']) } defaultValue={ getField('user', ['user']).filter((f) => f.selected) } onChange={ (value) => onField('user', value.map((v) => v.value)) } isMulti />
-            <small>
-              Selecting a user field will allow you to assign tasks to that user.
-            </small>
-          </div>
+          <TextField
+            label="Group Field"
+            value={ props.page.get('data.group') }
+            select
+            onChange={ (e) => props.setData('group', e.target.value) }
+            fullWidth
+          >
+            { getField('group').map((option) => {
+              // return jsx
+              return (
+                <MenuItem key={ option.value } value={ option.value }>
+                  { option.label }
+                </MenuItem>
+              );
+            }) }
+          </TextField>
+        
+          <TextField
+            label="Tag Field(s)"
+            value={ Array.isArray(props.page.get('data.tag')) ? props.page.get('data.tag') : [props.page.get('data.tag')].filter((f) => f) }
+            select
+            onChange={ (e) => props.setData('tag', e.target.value) }
+            fullWidth
 
-          <div className="mb-3">
-            <label className="form-label">
-              Item Display
-            </label>
-            <View
-              type="field"
-              view="code"
-              mode="handlebars"
-              struct="code"
-              value={ props.page.get('data.display') }
-              dashup={ props.dashup }
-              onChange={ (val) => props.setData('display', val) }
-              />
-          </div>
-            
-          <div className="mb-3">
-            <label className="form-label">
-              Filter By
-            </label>
-            <Query
-              isString
+            SelectProps={ {
+              multiple : true,
+            } }
+          >
+            { getField('tag', ['select', 'checkbox']).map((option) => {
+              // return jsx
+              return (
+                <MenuItem key={ option.value } value={ option.value }>
+                  { option.label }
+                </MenuItem>
+              );
+            }) }
+          </TextField>
+        
+          <TextField
+            label="Tag Field(s)"
+            value={ Array.isArray(props.page.get('data.user')) ? props.page.get('data.user') : [props.page.get('data.user')].filter((f) => f) }
+            select
+            onChange={ (e) => props.setData('user', e.target.value) }
+            fullWidth
 
-              page={ props.page }
-              query={ props.page.get('data.filter') }
-              dashup={ props.dashup }
-              fields={ props.getFields() }
-              onChange={ (val) => props.setData('filter', val) }
-              getFieldStruct={ props.getFieldStruct }
-              />
-          </div>
+            SelectProps={ {
+              multiple : true,
+            } }
+          >
+            { getField('user', ['user']).map((option) => {
+              // return jsx
+              return (
+                <MenuItem key={ option.value } value={ option.value }>
+                  { option.label }
+                </MenuItem>
+              );
+            }) }
+          </TextField>
+
+          <View
+            type="field"
+            view="input"
+            mode="handlebars"
+            struct="code"
+            field={ {
+              label : 'Item Display'
+            } }
+            value={ props.page.get('data.display') }
+            dashup={ props.dashup }
+            onChange={ (f, val) => props.setData('display', val) }
+          />
+
+          <Query
+            isString
+
+            page={ props.page }
+            label="Filter By"
+            query={ props.page.get('data.filter') }
+            dashup={ props.dashup }
+            fields={ props.getFields() }
+            onChange={ (val) => props.setData('filter', val) }
+            getFieldStruct={ props.getFieldStruct }
+          />
         </>
       ) }
     </>
