@@ -1,12 +1,12 @@
 
 
-$out-of-range-color: var(--bs-dark-transparent);
-$out-of-range-bg-color: var(--bs-light-transparent);
+$out-of-range-color: rgba(0, 0, 0, 0.1);
+$out-of-range-bg-color: rgba(255, 255, 255, 0.1);
 
 $calendar-border: transparent;
-$cell-border: var(--bs-secondary-transparent);
+$cell-border: var(--du-light-transparent);
 
-$border-color: var(--bs-secondary-transparent);
+$border-color: var(--du-light-transparent);
 
 $segment-width: percentage(1 / 7) !default;
 
@@ -15,10 +15,10 @@ $time-selection-bg-color: rgba(0,0,0, .50) !default;
 $date-selection-bg-color: rgba(0,0,0, .10) !default;
 
 
-$event-bg: var(--bs-primary);
-$event-border: var(--bs-primary);
-$event-outline: var(--bs-dark);
-$event-color: var(--bs-white);
+$event-bg: var(--du-primary);
+$event-border: var(--du-primary);
+$event-outline: var(--du-dark);
+$event-color: var(--du-white);
 $event-border-radius: ($spacer / 4);
 $event-padding: ($spacer / 4) ($spacer / 2);
 $event-zindex: 4 !default;
@@ -27,8 +27,8 @@ $btn-color: #373a3c !default;
 $btn-bg: #fff !default;
 $btn-border: #ccc !default;
 
-$current-time-color: var(--bs-dark);
+$current-time-color: var(--du-dark);
 
 $rbc-css-prefix: rbc-i !default;
 
-$today-highlight-bg: var(--bs-primary-transparent);
+$today-highlight-bg: var(--du-primary-transparent);

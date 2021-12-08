@@ -83,7 +83,7 @@
   .rbc-time-header-gutter {
     position: sticky;
     left: 0;
-    background: var(--bs-body);
+    background: rgba(0,0,0,0);
     border-right: $border-width solid $cell-border;
     z-index: 10;
   }

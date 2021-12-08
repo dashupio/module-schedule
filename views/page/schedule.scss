@@ -9,7 +9,7 @@ $border-width: 1px;
   display        : flex;
   min-width      : ($spacer * 20);
   min-height     : 100%;
-  border-right   : $border-width solid var(--bs-secondary-transparent);
+  border-right   : $border-width solid var(--du-light-transparent);
   flex-direction : column;
 
   &:last-child {
@@ -21,7 +21,7 @@ $border-width: 1px;
     display       : flex;
     align-items   : center;
     font-weight   : bold;
-    border-bottom : $border-width solid var(--bs-secondary-transparent);
+    border-bottom : $border-width solid var(--du-light-transparent);
 
     img {
       max-height : ($spacer * 2);
@@ -34,7 +34,7 @@ $border-width: 1px;
     display       : flex;
     padding       : ($spacer / 2);
     align-items   : center;
-    border-bottom : $border-width solid var(--bs-secondary-transparent);
+    border-bottom : $border-width solid var(--du-light-transparent);
 
     &:last-child {
       border-bottom : 0;

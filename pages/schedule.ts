@@ -28,6 +28,72 @@ export default class SchedulePage extends Struct {
   }
 
   /**
+   * data
+   */
+  get data() {
+    // return data
+    return {
+      default : {
+        title : 'The Schedule page requires a Model and form, do you want us to create those pages?',
+        check : [
+          'data.model',
+        ],
+        pages : [
+          {
+            _id  : 'model',
+            type : 'model',
+            icon : 'calendar-week fas',
+            name : 'Entry',
+            data : {
+              forms : ['{{ form }}'],
+            },
+            parent : '{{ _id }}',
+          },
+          {
+            _id  : 'form',
+            type : 'form',
+            icon : 'pencil fas',
+            name : 'Create',
+            data : {
+              model  : '{{ model }}',
+              fields : [
+                {
+                  name   : 'user',
+                  type   : 'user',
+                  uuid   : 'user',
+                  label  : 'User',
+                  order  : 0,
+                  parent : 'root',
+                },
+                {
+                  name   : 'date',
+                  type   : 'date',
+                  uuid   : 'date',
+                  label  : 'Date',
+                  order  : 1,
+                  parent : 'root',
+
+                  repeat   : true,
+                  duration : true,
+                },
+              ]
+            },
+            parent : '{{ model }}',
+          },
+        ],
+        replace : {
+          'data.user'    : 'user',
+          'data.date'    : 'date',
+          'data.model'   : '{{ model }}',
+          'data.forms'   : ['{{ form }}'],
+          'data.group'   : 'user',
+          'data.display' : '\{\{date date.start "hh:mm a"\}\} - \{\{date date.end "hh:mm a"\}\}',
+        },
+      }
+    };
+  }
+
+  /**
    * returns page type
    */
   get icon() {

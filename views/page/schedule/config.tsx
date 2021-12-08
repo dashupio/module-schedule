@@ -1,7 +1,7 @@
 
 // import react
 import React from 'react';
-import { Query, View, TextField, MenuItem, Box, Divider } from '@dashup/ui';
+import { Query, View, TextField, MenuItem, Box, Divider, FormControl, FormControlLabel, Switch } from '@dashup/ui';
 
 // create page model config
 const PageScheduleConfig = (props = {}) => {
@@ -106,11 +106,17 @@ const PageScheduleConfig = (props = {}) => {
         </TextField>
       ) }
 
-      { !!props.page.get('data.model') && props.getFields && !!props.getFields().length && (
+      { !!props.page.get('data.forms.0') && (
         <>
           <Box my={ 2 }>
             <Divider />
           </Box>
+
+          <FormControl fullWidth>
+            <FormControlLabel control={ (
+              <Switch checked={ !!props.page.get('data.disableUnassigned') } onChange={ (e) => props.setData('disableUnassigned', e.target?.checked) } />
+            ) } label="Disable Unassigned Column" />
+          </FormControl>
 
           <TextField
             label="Date Field"
@@ -168,7 +174,7 @@ const PageScheduleConfig = (props = {}) => {
           </TextField>
         
           <TextField
-            label="Tag Field(s)"
+            label="User Field(s)"
             value={ Array.isArray(props.page.get('data.user')) ? props.page.get('data.user') : [props.page.get('data.user')].filter((f) => f) }
             select
             onChange={ (e) => props.setData('user', e.target.value) }
@@ -200,6 +206,10 @@ const PageScheduleConfig = (props = {}) => {
             dashup={ props.dashup }
             onChange={ (f, val) => props.setData('display', val) }
           />
+
+          <Box my={ 2 }>
+            <Divider />
+          </Box>
 
           <Query
             isString

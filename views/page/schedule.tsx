@@ -1,12 +1,11 @@
 
 import Moment from 'moment'
-import dotProp from 'dot-prop';
 import Simplebar from 'simplebar-react';
 import { extendMoment } from 'moment-range';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop'
 import * as BigCalendar from 'react-big-calendar';
 import React, { useRef, useState, useEffect } from 'react';
-import { Page, Item, Button, MenuItem, IconButton, Icon, Menu, Tooltip } from '@dashup/ui';
+import { Box, Page, Avatar, Item, Stack, useTheme, Typography, Button, MenuItem, IconButton, Icon, Menu, Tooltip } from '@dashup/ui';
 
 // calendar
 const Calendar = withDragAndDrop(BigCalendar.Calendar);
@@ -22,6 +21,9 @@ const localizer = BigCalendar.momentLocalizer(moment);
 
 // calendar page
 const PageSchedule = (props = {}) => {
+  // theme
+  const theme = useTheme();
+
   // required
   const required = [{
     key   : 'data.model',
@@ -49,8 +51,7 @@ const PageSchedule = (props = {}) => {
   // state
   const [date, setDate] = useState(new Date());
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(null);
-  const [view, setView] = useState(props.page.get('data.view') && views[props.page.get('data.view')] ? props.page.get('data.view') : 'work_week');
+  const [view, setView] = useState(props.page.get('user.view') && views[props.page.get('user.view')] ? props.page.get('user.view') : 'schedule');
   const [data, setData] = useState([]);
   const [items, setItems] = useState([]);
   const [share, setShare] = useState(false);
@@ -404,7 +405,6 @@ const PageSchedule = (props = {}) => {
     const group = groups.find((g) => g.value === data.resourceId);
     
     // set item
-    setForm(props.getForms()[0].get('_id'));
     props.setItem(new props.dashup.Model({
       [dateField.name || dateField.uuid] : {
         end      : data.end,
@@ -470,16 +470,19 @@ const PageSchedule = (props = {}) => {
 
     // find
     loadGroups().then(async (groups) => {
+      // check groups
+      if (!groups) return;
+
       // items
       localItems = await getQuery().listen();
 
       // load items
       setData(localItems);
-      setGroups([{
+      setGroups([...(props.page.get('data.disableUnassigned') ? [] : [{
         type  : 'unassigned',
         value : '0',
         label : 'Unassigned',
-      }, ...groups]);
+      }]), ...groups]);
       setItems(getItems(localItems));
 
       // on update
@@ -493,6 +496,7 @@ const PageSchedule = (props = {}) => {
     props.page.on('user.search', onUpdate);
     props.page.on('user.filter.me', onUpdate);
     props.page.on('user.filter.tags', onUpdate);
+    props.page.on('data.disableUnassigned', onUpdate);
 
     // return fn
     return () => {
@@ -502,6 +506,7 @@ const PageSchedule = (props = {}) => {
       props.page.removeListener('user.search', onUpdate);
       props.page.removeListener('user.filter.me', onUpdate);
       props.page.removeListener('user.filter.tags', onUpdate);
+      props.page.removeListener('data.disableUnassigned', onUpdate);
 
       // if
       if (localItems) {
@@ -515,20 +520,28 @@ const PageSchedule = (props = {}) => {
     props.page.get('type'),
     props.page.get('data.group'),
     props.page.get('data.filter'),
+    props.page.get('data.disableUnassigned'),
     props.page.get('user.search'),
     props.page.get('user.filter.me'),
     props.page.get('user.filter.tags'),
   ]);
 
+  // column sx
+  const columnSx = {
+    p        : 1,
+    maxWidth : 320,
+    minWidth : 320,
+  };
+
   // return jsx
   return (
-    <Page { ...props } loading={ loading } require={ required } bodyClass="flex-column">
+    <Page { ...props } loading={ loading } require={ required } onConfig={ () => setConfig(true) } onShare={ () => setShare(true) }>
 
       <Page.Share show={ share } onHide={ (e) => setShare(false) } />
-      { !!props.item && <Page.Item show item={ props.item } form={ form } setItem={ props.setItem } onHide={ (e) => props.setItem(null) } /> }
+      { !!props.item && <Page.Item show item={ props.item } saveEmpty setItem={ props.setItem } onHide={ (e) => props.setItem(null) } /> }
       <Page.Config show={ config } onHide={ (e) => setConfig(false) } />
 
-      <Page.Menu onConfig={ () => setConfig(true) } presence={ props.presence } onShare={ () => setShare(true) }>
+      <Page.Menu presence={ props.presence }>
         <Button ref={ menuRef } variant="contained" onClick={ () => setOpen(true) }>
           View:
           { ' ' }
@@ -570,171 +583,230 @@ const PageSchedule = (props = {}) => {
       </Page.Menu>
       <Page.Filter onSearch={ setSearch } onTag={ setTag } onFilter={ setFilter } isString />
       <Page.Body>
-        <div className="d-flex flex-1 fit-content">
-          { view === 'schedule' ? (
-            <Simplebar className="ox-hidden shift-wrapper">
-              <div className="row g-0">
-                <div className="shift-column">
-                  <div className="shift-header">
-                    &nbsp;
-                  </div>
-                  { groups.map((group) => {
-                    // group
+        <Box flex={ 1 } position="relative" sx={ {
+          '--du-body' : theme.palette.text.primary,
+          '--du-dark' : theme.palette.dark.main,
+          '--du-primary' : theme.palette.primary.main,
+          '--du-light-transparent' : `${theme.palette.light.main}2e`,
+          '--du-primary-transparent' : `${theme.palette.primary.main}2e`,
+
+          '& .DuiItemCard' : {
+            height : '100%',
+          }
+        } }>
+          <Box position="absolute" top={ 0 } left={ 0 } right={ 0 } bottom={ 0 } display="flex">
+            { view === 'schedule' ? (
+              <Box component={ Simplebar } className="shift-wrapper" sx={ {
+                width  : '100%',
+                height : '100%',
+              } }>
+                <Stack direction="row">
+                  <Box sx={ columnSx } />
+                  { getDates().map((date) => {
+                    // return jsx
                     return (
-                      <div key={ group.value } className="shift-slot">
+                      <Box sx={ {
+                        display       : 'flex',
+                        alignItems    : 'center',
+                        flexDirection : 'row',
+
+                        ...columnSx,
+                      } } key={ `title-${date}` }>
+                        <Typography>
+                          { moment(date).format('dddd Do MMM') }
+                        </Typography>
+                      </Box>
+                    );
+                  }) }
+                </Stack>
+
+                { groups.map((group) => {
+                  // group
+                  return (
+                    <Stack direction="row" key={ group.value }>
+                      <Box sx={ {
+                        display       : 'flex',
+                        borderTop     : `1px solid var(--du-light-transparent)`,
+                        alignItems    : 'center',
+                        borderRight   : `1px solid var(--du-light-transparent)`,
+                        flexDirection : 'row',
+
+                        ...columnSx,
+                      } }>
                         { group.type !== 'unassigned' && (
                           <>
                             { group.type === 'member' && (
-                              <img src={ dotProp.get(group, 'data.avatar.0.thumbs.2x-sq.url') || '/public/assets/images/avatar.png' } className="img-avatar rounded-circle me-3" />
+                              <Avatar image={ group?.data?.avatar } name={ group.label } sx={ { mr : 2 } } />
                             ) }
                             { group.label }
                           </>
                         ) }
-                      </div>
-                    );
-                  }) }
-                </div>
-                <div className="flex-1 shift-columns">
-                  <Simplebar className="w-100">
-                    { getDates().map((date) => {
-                      // return jsx
-                      return (
-                        <div key={ `${date.toISOString()}`.toLowerCase() } className="shift-column">
-                          <div className="shift-header">
-                            { moment(date).format('dddd') }
-                            <span className="ms-auto">
-                              { moment(date).format('Do MMM') }
-                            </span>
-                          </div>
-                          { groups.map((group) => {
-                            // range
-                            const range = moment.range(date, moment(date).add(1, 'day').toDate());
+                      </Box>
+                      { getDates().map((date) => {
+                        // range
+                        const range = moment.range(date, moment(date).add(1, 'day').toDate());
 
-                            // get sub items
-                            const filteredItems = [...items].filter((item) => item.resourceId === group.value).filter((item) => {
-                              // check date
-                              return range.overlaps(item.range);
-                            });
+                        // get sub items
+                        const filteredItems = [...items].filter((item) => item.resourceId === group.value).filter((item) => {
+                          // check date
+                          return range.overlaps(item.range);
+                        });
+                        
+                        // return jsx
+                        return (
+                          <Box sx={ {
+                            cursor      : 'pointer',
+                            borderTop   : `1px solid var(--du-light-transparent)`,
+                            borderRight : `1px solid var(--du-light-transparent)`,
 
-                            // group
-                            return (
-                              <div key={ `${date.toISOString()}-${group.value}` } className="shift-slot">
-                                { filteredItems.map((event) => {
-                                  // repeat
-                                  const repeat = event.repeat;
+                            ...columnSx,
 
-                                  return (
-                                    <Tooltip key={ `schedule-item-${event.item.get('_id')}` } title={ (
-                                      event.allDay ? (
-                                        moment(event.start).format('MMM DD YYYY')
-                                      ) : (
-                                        `${moment(event.start).format('hh:mm a')} - ${moment(event.end).format('hh:mm a')}`
-                                      )
-                                    ) }>
-                                      <Item
-                                        size="sm"
-                                        item={ event.item }
-                                        page={ props.page }
-                                        group={ 'schedule' }
-                                        dashup={ props.dashup }
-                                        template={ props.page.get('data.display') }
-                                        getField={ props.getField }
-                                        repeat={ !!repeat && (
-                                          <Tooltip>
-                                            Repeats every { repeat?.amount > 1 ? `${repeat.amount.toLocaleString()} ${repeat.period || 'day'}s` : (repeat.period || 'day') }
-                                            { repeat?.ends && repeat.until === 'until' ? ` until ${moment(repeat.until).format('LL')}` : '' }
-                                          </Tooltip>
-                                        ) }
-                                        onClick={ () => !setForm(event.item.get('_meta.form') || props.getForms()[0].get('_id')) && props.setItem(event.item) }
-                                      />
-                                    </Tooltip>
+                            '&:hover .empty-slot' : {
+                              height       : '100%',
+                              border       : `1px dashed var(--du-light-transparent)`,
+                              background   : 'rgba(0, 0, 0, 0.1)',
+                              borderRadius : 2,
+                            }
+                          } } key={ `group-${group.value}-${date}` }>
+                            { !filteredItems.length && (
+                              <Box className="empty-slot" onClick={ (e) => {
+                                onCreate({
+                                  end   : moment(date).set({ hour : 17 }).toDate(),
+                                  start : moment(date).set({ hour : 9 }).toDate(),
+
+                                  resourceId : group.value,
+                                })
+                              } } />
+                            ) }
+                            { filteredItems.map((event) => {
+                              // repeat
+                              const repeat = event.repeat;
+
+                              return (
+                                <Tooltip key={ `schedule-item-${event.item.get('_id')}` } title={ (
+                                  event.allDay ? (
+                                    moment(event.start).format('MMM DD YYYY')
+                                  ) : (
+                                    `${moment(event.start).format('hh:mm a')} - ${moment(event.end).format('hh:mm a')}`
                                   )
-                                }) }
-                              </div>
-                            );
-                          }) }
-                        </div>
-                      )
-                    }) }
-                  </Simplebar>
-                </div>
-              </div>
-            </Simplebar>
-          ) : (
-            <Calendar
-              view={ view }
-              step={ 30 }
-              views={ ['day', 'week', 'work_week', 'month'] }
-              onView={ () => {} }
-              selectable
-
-              date={ date }
-              onNavigate={ () => {} }
-              onEventDrop={ ({ start, end, event, resourceId }) => {
-                // get groupBy field
-                const groupBy = props.getFields().find((f) => f.uuid === props.page.get('data.group'));
-                
-                // set item
-                event.item.set(`${groupBy.name || groupBy.uuid}`, resourceId === '0' ? null : resourceId);
-                event.item.set(`${event.field.name || event.field.uuid}.end`, end);
-                event.item.set(`${event.field.name || event.field.uuid}.start`, start);
-                event.item.save();
-                setUpdated(new Date());
-              } }
-              onEventResize={ ({ start, end, event, resourceId }) => {
-                // get groupBy field
-                const groupBy = props.getFields().find((f) => f.uuid === props.page.get('data.group'));
-
-                // set item
-                event.item.set(`${groupBy.name || groupBy.uuid}`, resourceId === '0' ? null : resourceId);
-                event.item.set(`${event.field.name || event.field.uuid}.end`, end);
-                event.item.set(`${event.field.name || event.field.uuid}.start`, start);
-                event.item.save();
-                setUpdated(new Date());
-              } }
-              onSelectSlot={ onCreate }
-
-              components={ {
-                event : ({ event }) => {
-                  // repeat
-                  const repeat = event.repeat;
-
-                  // return event
-                  return (
-                    <Tooltip title={ `${moment(event.start).format('hh:mm a')} - ${moment(event.end).format('hh:mm a')}` }>
-                      <Item
-                        key={ `schedule-item-${event.item.get('_id')}` }
-                        size="sm"
-                        item={ event.item }
-                        page={ props.page }
-                        group={ 'schedule' }
-                        dashup={ props.dashup }
-                        template={ props.page.get('data.display') }
-                        getField={ props.getField }
-                        repeat={ !!repeat && (
-                          <Tooltip>
-                            Repeats every { repeat?.amount > 1 ? `${repeat.amount.toLocaleString()} ${repeat.period || 'day'}s` : (repeat.period || 'day') }
-                            { repeat?.ends && repeat.until === 'until' ? ` until ${moment(repeat.until).format('LL')}` : '' }
-                          </Tooltip>
-                        ) }
-                        onClick={ () => !setForm(event.item.get('_meta.form') || props.getForms()[0].get('_id')) && props.setItem(event.item) }
-                      />
-                    </Tooltip>
+                                ) }>
+                                  <Box width="100%" height="100%">
+                                    <Item
+                                      size="sm"
+                                      item={ event.item }
+                                      page={ props.page }
+                                      group={ 'schedule' }
+                                      dashup={ props.dashup }
+                                      template={ props.page.get('data.display') }
+                                      getField={ props.getField }
+                                      BodyProps={ {
+                                        sx : {
+                                          flex : 1,
+                                        }
+                                      } }
+                                      repeat={ !!repeat && (
+                                        <Box>
+                                          Repeats every { repeat?.amount > 1 ? `${repeat.amount.toLocaleString()} ${repeat.period || 'day'}s` : (repeat.period || 'day') }
+                                          { repeat?.ends && repeat.until === 'until' ? ` until ${moment(repeat.until).format('LL')}` : '' }
+                                        </Box>
+                                      ) }
+                                      onClick={ () => props.setItem(event.item) }
+                                    />
+                                  </Box>
+                                </Tooltip>
+                              )
+                            }) }
+                          </Box>
+                        );
+                      }) }
+                    </Stack>
                   );
-                },
-                
-              } }
+                }) }
+              </Box>
+            ) : (
+              <Calendar
+                view={ view }
+                step={ 30 }
+                views={ ['day', 'week', 'work_week', 'month'] }
+                onView={ () => {} }
+                selectable
 
-              events={ items }
-              localizer={ localizer }
-              resources={ groups }
-              endAccessor="end"
-              startAccessor="start"
-              resourceIdAccessor="value"
-              resourceTitleAccessor="label"
-            />
-          ) }
-        </div>
+                date={ date }
+                onNavigate={ () => {} }
+                onEventDrop={ ({ start, end, event, resourceId }) => {
+                  // get groupBy field
+                  const groupBy = props.getFields().find((f) => f.uuid === props.page.get('data.group'));
+                  
+                  // set item
+                  event.item.set(`${groupBy.name || groupBy.uuid}`, resourceId === '0' ? null : resourceId);
+                  event.item.set(`${event.field.name || event.field.uuid}.end`, end);
+                  event.item.set(`${event.field.name || event.field.uuid}.start`, start);
+                  event.item.save();
+                  setUpdated(new Date());
+                } }
+                onEventResize={ ({ start, end, event, resourceId }) => {
+                  // get groupBy field
+                  const groupBy = props.getFields().find((f) => f.uuid === props.page.get('data.group'));
+
+                  // set item
+                  event.item.set(`${groupBy.name || groupBy.uuid}`, resourceId === '0' ? null : resourceId);
+                  event.item.set(`${event.field.name || event.field.uuid}.end`, end);
+                  event.item.set(`${event.field.name || event.field.uuid}.start`, start);
+                  event.item.save();
+                  setUpdated(new Date());
+                } }
+                onSelectSlot={ onCreate }
+                drilldownView="agenda"
+
+                components={ {
+                  event : ({ event }) => {
+                    // repeat
+                    const repeat = event.repeat;
+
+                    // return event
+                    return (
+                      <Tooltip title={ `${moment(event.start).format('hh:mm a')} - ${moment(event.end).format('hh:mm a')}` }>
+                        <Box height="100%" width="100%">
+                          <Item
+                            key={ `schedule-item-${event.item.get('_id')}` }
+                            size="sm"
+                            item={ event.item }
+                            page={ props.page }
+                            group={ 'schedule' }
+                            dashup={ props.dashup }
+                            template={ props.page.get('data.display') }
+                            getField={ props.getField }
+                            BodyProps={ {
+                              sx : {
+                                flex : 1,
+                              }
+                            } }
+                            repeat={ !!repeat && (
+                              <Box>
+                                Repeats every { repeat?.amount > 1 ? `${repeat.amount.toLocaleString()} ${repeat.period || 'day'}s` : (repeat.period || 'day') }
+                                { repeat?.ends && repeat.until === 'until' ? ` until ${moment(repeat.until).format('LL')}` : '' }
+                              </Box>
+                            ) }
+                            onClick={ () => props.setItem(event.item, true) }
+                          />
+                        </Box>
+                      </Tooltip>
+                    );
+                  },
+                  
+                } }
+
+                events={ items }
+                localizer={ localizer }
+                resources={ groups }
+                endAccessor="end"
+                startAccessor="start"
+                resourceIdAccessor="value"
+                resourceTitleAccessor="label"
+              />
+            ) }
+          </Box>
+        </Box>
       </Page.Body>
     </Page>
   );
