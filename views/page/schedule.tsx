@@ -2,6 +2,7 @@
 import Moment from 'moment'
 import Simplebar from 'simplebar-react';
 import { extendMoment } from 'moment-range';
+import { ReactSortable } from 'react-sortablejs';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop'
 import * as BigCalendar from 'react-big-calendar';
 import React, { useRef, useState, useEffect } from 'react';
@@ -351,6 +352,48 @@ const PageSchedule = (props = {}) => {
     return dates;
   };
 
+  const onEnd = (e) => {
+    // get id
+    const id = e.item.getAttribute('data-id');
+
+    // to
+    const to = e.to.parentElement;
+    
+    // set date value
+    const date = new Date(parseInt(to.getAttribute('data-id').split(':').pop()));
+    const value = to.getAttribute('data-id').split(':')[0];
+
+    // get item
+    const item = items.find((i) => i.item.get('_id') === id);
+
+    // fields
+    const forms = props.getForms([props.page.get('data.model')]);
+    const fields = props.getFields(forms);
+    const dateField = props.getField(props.page.get('data.date'), fields);
+    const groupField = props.getField(props.page.get('data.group'), fields);
+
+    // group
+    const group = groups.find((g) => g.value === value);
+
+    // original start/end
+    const originalDate = item.item.get(dateField.name || dateField.uuid);
+
+    // set values
+    item.item.set(groupField.name || groupField.uuid, group?.data);
+    item.item.set(dateField.name || dateField.uuid, {
+      ...originalDate,
+
+      end   : moment(originalDate.end || new Date()).set('month', moment(date).get('month')).set('date', moment(date).get('date')).toDate(),
+      start : moment(originalDate.start || new Date()).set('month', moment(date).get('month')).set('date', moment(date).get('date')).toDate(),
+    });
+
+    // save
+    item.item.save();
+    
+    // emit update
+    if (data?.emit) data.emit('update');
+  };
+
   // on prev
   const onPrev = (e) => {
     // prevent
@@ -592,6 +635,9 @@ const PageSchedule = (props = {}) => {
 
           '& .DuiItemCard' : {
             height : '100%',
+          },
+          '& .rbc-calendar' : {
+            width : '100%',
           }
         } }>
           <Box position="absolute" top={ 0 } left={ 0 } right={ 0 } bottom={ 0 } display="flex">
@@ -606,29 +652,32 @@ const PageSchedule = (props = {}) => {
                     // return jsx
                     return (
                       <Box sx={ {
-                        display       : 'flex',
-                        alignItems    : 'center',
-                        flexDirection : 'row',
+                        display        : 'flex',
+                        alignItems     : 'center',
+                        flexDirection  : 'row',
+                        justifyContent : 'center',
 
                         ...columnSx,
                       } } key={ `title-${date}` }>
-                        <Typography>
-                          { moment(date).format('dddd Do MMM') }
+                        <Typography fontWeight="bold">
+                          { moment(date).format('ddd Do MMM') }
                         </Typography>
                       </Box>
                     );
                   }) }
                 </Stack>
 
-                { groups.map((group) => {
+                { groups.map((group, i) => {
                   // group
                   return (
                     <Stack direction="row" key={ group.value }>
                       <Box sx={ {
                         display       : 'flex',
                         borderTop     : `1px solid var(--du-light-transparent)`,
+                        borderLeft    : `1px solid var(--du-light-transparent)`,
                         alignItems    : 'center',
                         borderRight   : `1px solid var(--du-light-transparent)`,
+                        borderBottom  : i === (groups.length - 1) ?  `1px solid var(--du-light-transparent)` : undefined,
                         flexDirection : 'row',
 
                         ...columnSx,
@@ -638,7 +687,9 @@ const PageSchedule = (props = {}) => {
                             { group.type === 'member' && (
                               <Avatar image={ group?.data?.avatar } name={ group.label } sx={ { mr : 2 } } />
                             ) }
-                            { group.label }
+                            <Typography fontWeight="bold">
+                              { group.label }
+                            </Typography>
                           </>
                         ) }
                       </Box>
@@ -654,68 +705,87 @@ const PageSchedule = (props = {}) => {
                         
                         // return jsx
                         return (
-                          <Box sx={ {
-                            cursor      : 'pointer',
-                            borderTop   : `1px solid var(--du-light-transparent)`,
-                            borderRight : `1px solid var(--du-light-transparent)`,
+                          <Box
+                            sx={ {
+                              cursor        : 'pointer',
+                              borderTop     : `1px solid var(--du-light-transparent)`,
+                              borderRight   : `1px solid var(--du-light-transparent)`,
+                              borderBottom  : i === (groups.length - 1) ?  `1px solid var(--du-light-transparent)` : undefined,
 
-                            ...columnSx,
+                              ...columnSx,
 
-                            '&:hover .empty-slot' : {
-                              height       : '100%',
-                              border       : `1px dashed var(--du-light-transparent)`,
-                              background   : 'rgba(0, 0, 0, 0.1)',
-                              borderRadius : 2,
-                            }
-                          } } key={ `group-${group.value}-${date}` }>
-                            { !filteredItems.length && (
-                              <Box className="empty-slot" onClick={ (e) => {
-                                onCreate({
+                              '& > .MuiBox-root' : {
+                                height : '100%',
+                              },
+                              '&:hover .empty-slot' : {
+                                border       : `1px dashed var(--du-light-transparent)`,
+                                background   : 'rgba(0, 0, 0, 0.1)',
+                                borderRadius : 2,
+                              }
+                            } }
+                            key={ `group-${group.value}-${date}` }
+                            data-id={ `${group.value}:${new Date(date).getTime()}` }
+                          >
+                            <Box
+                              list={ filteredItems || [] }
+                              group={ props.page.get('_id') }
+                              onEnd={ (e) => onEnd(e, { group, date }) }
+                              setList={ () => {} }
+                              className={ filteredItems.length ? undefined : 'empty-slot' }
+                              component={ ReactSortable }
+
+                              onClick={ (e) => {
+                                if (!filteredItems.length) onCreate({
                                   end   : moment(date).set({ hour : 17 }).toDate(),
                                   start : moment(date).set({ hour : 9 }).toDate(),
 
                                   resourceId : group.value,
                                 })
-                              } } />
-                            ) }
-                            { filteredItems.map((event) => {
-                              // repeat
-                              const repeat = event.repeat;
+                              } }
+                            >
+                              { filteredItems.map((event) => {
+                                // repeat
+                                const repeat = event.repeat;
 
-                              return (
-                                <Tooltip key={ `schedule-item-${event.item.get('_id')}` } title={ (
-                                  event.allDay ? (
-                                    moment(event.start).format('MMM DD YYYY')
-                                  ) : (
-                                    `${moment(event.start).format('hh:mm a')} - ${moment(event.end).format('hh:mm a')}`
-                                  )
-                                ) }>
-                                  <Box width="100%" height="100%">
-                                    <Item
-                                      size="sm"
-                                      item={ event.item }
-                                      page={ props.page }
-                                      group={ 'schedule' }
-                                      dashup={ props.dashup }
-                                      template={ props.page.get('data.display') }
-                                      getField={ props.getField }
-                                      BodyProps={ {
-                                        sx : {
-                                          flex : 1,
-                                        }
-                                      } }
-                                      repeat={ !!repeat && (
-                                        <Box>
-                                          Repeats every { repeat?.amount > 1 ? `${repeat.amount.toLocaleString()} ${repeat.period || 'day'}s` : (repeat.period || 'day') }
-                                          { repeat?.ends && repeat.until === 'until' ? ` until ${moment(repeat.until).format('LL')}` : '' }
-                                        </Box>
-                                      ) }
-                                      onClick={ () => props.setItem(event.item) }
-                                    />
-                                  </Box>
-                                </Tooltip>
-                              )
-                            }) }
+                                return (
+                                  <Tooltip key={ `schedule-item-${event.item.get('_id')}` } title={ (
+                                    event.allDay ? (
+                                      moment(event.start).format('MMM DD YYYY')
+                                    ) : (
+                                      `${moment(event.start).format('hh:mm a')} - ${moment(event.end).format('hh:mm a')}`
+                                    )
+                                  ) }>
+                                    <Box
+                                      width="100%"
+                                      height="100%"
+                                      data-id={ `${event.item.get('_id')}` }
+                                    >
+                                      <Item
+                                        size="sm"
+                                        item={ event.item }
+                                        page={ props.page }
+                                        group={ 'schedule' }
+                                        dashup={ props.dashup }
+                                        template={ props.page.get('data.display') }
+                                        getField={ props.getField }
+                                        BodyProps={ {
+                                          sx : {
+                                            flex : 1,
+                                          }
+                                        } }
+                                        repeat={ !!repeat && (
+                                          <Box>
+                                            Repeats every { repeat?.amount > 1 ? `${repeat.amount.toLocaleString()} ${repeat.period || 'day'}s` : (repeat.period || 'day') }
+                                            { repeat?.ends && repeat.until === 'until' ? ` until ${moment(repeat.until).format('LL')}` : '' }
+                                          </Box>
+                                        ) }
+                                        onClick={ () => props.setItem(event.item) }
+                                      />
+                                    </Box>
+                                  </Tooltip>
+                                )
+                              }) }
+                            </Box>
                           </Box>
                         );
                       }) }

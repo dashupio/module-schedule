@@ -82,12 +82,14 @@ export default class SchedulePage extends Struct {
           },
         ],
         replace : {
-          'data.user'    : 'user',
-          'data.date'    : 'date',
-          'data.model'   : '{{ model }}',
-          'data.forms'   : ['{{ form }}'],
-          'data.group'   : 'user',
-          'data.display' : '\{\{date date.start "hh:mm a"\}\} - \{\{date date.end "hh:mm a"\}\}',
+          'data.user'  : 'user',
+          'data.date'  : 'date',
+          'data.model' : '{{ model }}',
+          'data.forms' : ['{{ form }}'],
+          'data.group' : 'user',
+        },
+        replaceRaw : {
+          'data.display' : '{{date date.start "hh:mm a"}} - {{date date.end "hh:mm a"}}',
         },
       }
     };
