@@ -56,6 +56,7 @@ const PageSchedule = (props = {}) => {
   const [data, setData] = useState([]);
   const [items, setItems] = useState([]);
   const [share, setShare] = useState(false);
+  const [search, setSearch] = useState('');
   const [groups, setGroups] = useState([]);
   const [config, setConfig] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -91,7 +92,7 @@ const PageSchedule = (props = {}) => {
     // check if groupBy field is a user field
     if (groupBy.type === 'user') {
       // members
-      const members = await eden.router.get(`/app/${props.dashup.get('_id')}/member/query`);
+      const members = (await eden.router.get(`/app/${props.dashup.get('_id')}/member/query${props.page.get('data.teams.0') ? `?teams=${props.page.get('data.teams').map((t) => t.id).join(',')}` : ''}`)).data;
 
       // return members
       return members.map((member) => {
@@ -126,6 +127,29 @@ const PageSchedule = (props = {}) => {
 
     // return nothing
     return null;
+  };
+
+  // groups
+  const getGroups = () => {
+    // fields
+    const forms = !!props.page.get('user.filter.me') && props.getForms([props.page.get('data.model')]);
+    const fields = !!props.page.get('user.filter.me') && props.getFields(forms);
+    const groupField = !!props.page.get('user.filter.me') && props.getField(props.page.get('data.group'), fields);
+
+    // return filtered
+    return [...groups].filter((group) => {
+      // check search
+      if (!(search || '').length) return true;
+
+      // check mine
+      if (!!props.page.get('user.filter.me') && groupField.type === 'user') {
+        // return is me
+        return group.value === eden.user?.get('id');
+      }
+
+      // find in group
+      return JSON.stringify(group).toLowerCase().includes(`${search}`.toLowerCase());
+    });
   };
 
   // get query
@@ -335,6 +359,21 @@ const PageSchedule = (props = {}) => {
     }, []);
   };
 
+  // get total
+  const getTotal = (value) => {
+    // get sub items
+    const filteredItems = [...items].filter((item) => item.resourceId === value);
+
+    // reduce total time
+    const totalHours = filteredItems.reduce((accum, { range }) => {
+      // time
+      return accum + (range.end.toDate().getTime() - range.start.toDate().getTime());
+    }, 0);
+
+    // return one
+    return totalHours / (60 * 60 * 1000);
+  };
+
   // get dates
   const getDates = () => {
     // start of week
@@ -486,12 +525,6 @@ const PageSchedule = (props = {}) => {
     await props.setUser('filter.tags', tags);
   };
 
-  // set search
-  const setSearch = (search = '') => {
-    // set page data
-    props.page.set('user.search', search.length ? search : null);
-  };
-
   // set filter
   const setFilter = async (filter) => {
     // set data
@@ -535,6 +568,7 @@ const PageSchedule = (props = {}) => {
 
     // add listener
     props.page.on('data.group', onUpdate);
+    props.page.on('data.teams', onUpdate);
     props.page.on('data.filter', onUpdate);
     props.page.on('user.search', onUpdate);
     props.page.on('user.filter.me', onUpdate);
@@ -545,6 +579,7 @@ const PageSchedule = (props = {}) => {
     return () => {
       // remove listener
       props.page.removeListener('data.group', onUpdate);
+      props.page.removeListener('data.teams', onUpdate);
       props.page.removeListener('data.filter', onUpdate);
       props.page.removeListener('user.search', onUpdate);
       props.page.removeListener('user.filter.me', onUpdate);
@@ -561,6 +596,7 @@ const PageSchedule = (props = {}) => {
   }, [
     view,
     props.page.get('type'),
+    props.page.get('data.teams'),
     props.page.get('data.group'),
     props.page.get('data.filter'),
     props.page.get('data.disableUnassigned'),
@@ -586,9 +622,7 @@ const PageSchedule = (props = {}) => {
 
       <Page.Menu presence={ props.presence }>
         <Button ref={ menuRef } variant="contained" onClick={ () => setOpen(true) }>
-          View:
-          { ' ' }
-          <b>{ views[view] }</b>
+          { views[view] }
         </Button>
         <Menu
           open={ open }
@@ -624,13 +658,14 @@ const PageSchedule = (props = {}) => {
           </Button>
         ) }
       </Page.Menu>
+      
       <Page.Filter onSearch={ setSearch } onTag={ setTag } onFilter={ setFilter } isString />
       <Page.Body>
         <Box flex={ 1 } position="relative" sx={ {
           '--du-body' : theme.palette.text.primary,
           '--du-dark' : theme.palette.dark.main,
           '--du-primary' : theme.palette.primary.main,
-          '--du-light-transparent' : `${theme.palette.light.main}2e`,
+          '--du-light-transparent' : `${theme.palette.action.disabled}`,
           '--du-primary-transparent' : `${theme.palette.primary.main}2e`,
 
           '& .DuiItemCard' : {
@@ -667,17 +702,13 @@ const PageSchedule = (props = {}) => {
                   }) }
                 </Stack>
 
-                { groups.map((group, i) => {
+                { getGroups().map((group, i) => {
                   // group
                   return (
                     <Stack direction="row" key={ group.value }>
                       <Box sx={ {
                         display       : 'flex',
-                        borderTop     : `1px solid var(--du-light-transparent)`,
-                        borderLeft    : `1px solid var(--du-light-transparent)`,
                         alignItems    : 'center',
-                        borderRight   : `1px solid var(--du-light-transparent)`,
-                        borderBottom  : i === (groups.length - 1) ?  `1px solid var(--du-light-transparent)` : undefined,
                         flexDirection : 'row',
 
                         ...columnSx,
@@ -687,13 +718,18 @@ const PageSchedule = (props = {}) => {
                             { group.type === 'member' && (
                               <Avatar image={ group?.data?.avatar } name={ group.label } sx={ { mr : 2 } } />
                             ) }
-                            <Typography fontWeight="bold">
-                              { group.label }
-                            </Typography>
+                            <Box>
+                              <Typography fontWeight="bold" sx={ { mb : 0 } }>
+                                { group.label }
+                              </Typography>
+                              <Typography fontSize="small">
+                                { getTotal(group.value).toFixed(2) } Hours
+                              </Typography>
+                            </Box>
                           </>
                         ) }
                       </Box>
-                      { getDates().map((date) => {
+                      { getDates().map((date, dateI) => {
                         // range
                         const range = moment.range(date, moment(date).add(1, 'day').toDate());
 
@@ -702,17 +738,29 @@ const PageSchedule = (props = {}) => {
                           // check date
                           return range.overlaps(item.range);
                         });
+
+                        // is last column
+                        const isLastCol = dateI === (getDates().length - 1);
+                        const isWeekend = moment(date).format('dddd') === 'Sunday' || moment(date).format('dddd') === 'Saturday';
                         
                         // return jsx
                         return (
                           <Box
                             sx={ {
-                              cursor        : 'pointer',
-                              borderTop     : `1px solid var(--du-light-transparent)`,
-                              borderRight   : `1px solid var(--du-light-transparent)`,
-                              borderBottom  : i === (groups.length - 1) ?  `1px solid var(--du-light-transparent)` : undefined,
+                              cursor          : 'pointer',
+                              borderTop       : `1px solid var(--du-light-transparent)`,
+                              borderLeft      : `1px solid var(--du-light-transparent)`,
+                              borderRight     : isLastCol ? `1px solid var(--du-light-transparent)` : null,
+                              borderBottom    : i === (groups.length - 1) ?  `1px solid var(--du-light-transparent)` : undefined,
+                              backgroundColor : moment().startOf('day').format('dd-mm-yyyy') === moment(date).startOf('day').format('dd-mm-yyyy') ? `${theme.palette.primary.main}2e` : (isWeekend ? `rgba(0,0,0,0.15)` : null),
 
                               ...columnSx,
+
+                              borderTopLeftRadius    : dateI === 0 && i === 0 ? theme.shape.borderRadius * 2 : null,
+                              borderBottomLeftRadius : dateI === 0 && i === (groups.length - 1) ? theme.shape.borderRadius * 2 : null,
+
+                              borderTopRightRadius    : isLastCol && i === 0 ? theme.shape.borderRadius * 2 : null,
+                              borderBottomRightRadius : isLastCol && i === (groups.length - 1) ? theme.shape.borderRadius * 2 : null,
 
                               '& > .MuiBox-root' : {
                                 height : '100%',
@@ -725,6 +773,15 @@ const PageSchedule = (props = {}) => {
                             } }
                             key={ `group-${group.value}-${date}` }
                             data-id={ `${group.value}:${new Date(date).getTime()}` }
+
+                            onClick={ (e) => {
+                              if (!filteredItems.length) onCreate({
+                                end   : moment(date).set({ hour : 17 }).toDate(),
+                                start : moment(date).set({ hour : 9 }).toDate(),
+
+                                resourceId : group.value,
+                              })
+                            } }
                           >
                             <Box
                               list={ filteredItems || [] }
@@ -733,15 +790,6 @@ const PageSchedule = (props = {}) => {
                               setList={ () => {} }
                               className={ filteredItems.length ? undefined : 'empty-slot' }
                               component={ ReactSortable }
-
-                              onClick={ (e) => {
-                                if (!filteredItems.length) onCreate({
-                                  end   : moment(date).set({ hour : 17 }).toDate(),
-                                  start : moment(date).set({ hour : 9 }).toDate(),
-
-                                  resourceId : group.value,
-                                })
-                              } }
                             >
                               { filteredItems.map((event) => {
                                 // repeat

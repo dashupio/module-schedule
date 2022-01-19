@@ -55,6 +55,7 @@ const PageScheduleConfig = (props = {}) => {
 
       // return fields
       return {
+        type  : field.type,
         label : field.label || field.name,
         value : field.uuid,
 
@@ -68,7 +69,7 @@ const PageScheduleConfig = (props = {}) => {
     <>
       <TextField
         label="Choose Model"
-        value={ props.page.get('data.model') }
+        value={ props.page.get('data.model') || '' }
         select
         onChange={ (e) => props.setData('model', e.target.value) }
         fullWidth
@@ -120,7 +121,7 @@ const PageScheduleConfig = (props = {}) => {
 
           <TextField
             label="Date Field"
-            value={ props.page.get('data.date') }
+            value={ props.page.get('data.date') || '' }
             select
             onChange={ (e) => props.setData('date', e.target.value) }
             fullWidth
@@ -134,10 +135,28 @@ const PageScheduleConfig = (props = {}) => {
               );
             }) }
           </TextField>
+        
+          <TextField
+            label="Type Field"
+            value={ props.page.get('data.type') || '' }
+            select
+            onChange={ (e) => props.setData('type', e.target.value) }
+            fullWidth
+            helperText={ `Must include at least "Leave", "Pending", "Posted", "Active", "Worked"` }
+          >
+            { getField('type', ['select', 'checkbox']).map((option) => {
+              // return jsx
+              return (
+                <MenuItem key={ option.value } value={ option.value }>
+                  { option.label }
+                </MenuItem>
+              );
+            }) }
+          </TextField>
             
           <TextField
             label="Group Field"
-            value={ props.page.get('data.group') }
+            value={ props.page.get('data.group') || '' }
             select
             onChange={ (e) => props.setData('group', e.target.value) }
             fullWidth
@@ -151,6 +170,29 @@ const PageScheduleConfig = (props = {}) => {
               );
             }) }
           </TextField>
+
+          { getField('group').find((s) => s.selected)?.type === 'user' && (
+            <View
+              type="field"
+              view="input"
+              struct="team"
+
+              value={ (Array.isArray(props.page.get('data.teams')) ? props.page.get('data.teams') : [props.page.get('data.teams')].filter((f) => f)) }
+              field={ {
+                help     : 'Only schedule users with these teams',
+                label    : 'Group User Teams',
+                multiple : true,
+              } }
+              dashup={ props.dashup }
+              onChange={ (f, val) => props.setData('teams', (Array.isArray(val) ? val : [val]).filter((v) => v).map((v) => {
+                // delete acls
+                delete v.acls;
+
+                // return value
+                return v;
+              })) }
+            />
+          ) }
         
           <TextField
             label="Tag Field(s)"

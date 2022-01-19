@@ -91,6 +91,14 @@ export default class SchedulePage extends Struct {
         replaceRaw : {
           'data.display' : '{{date date.start "hh:mm a"}} - {{date date.end "hh:mm a"}}',
         },
+      },
+
+      share : {
+        acls  : ['view', 'submit'],
+        pages : {
+          'data.forms' : false,
+          'data.model' : false,
+        },
       }
     };
   }
